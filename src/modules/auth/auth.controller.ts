@@ -79,22 +79,16 @@ const signup = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const signin = async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const cookies = req.cookies;
-    const headers = req.headers;
-    const result = await authService.signin(req.body, cookies, headers);
-    if (!result) {
-      res.status(400).json(result);
-    }
-    res
-      .status(200)
-      .json({ success: true, message: `user signin successfully`, result });
-  } catch (error: any) {
-    error.customMessage = error.message;
-    next(error);
-  }
-};
+const signin = catchAsync(async (req: Request, res: Response) => {
+    const result = await authService.signin(req.body);
+    sendResponse(res,{
+      httpStatusCode:status.OK,
+      success:true,
+      message:"user signin successfully",
+      data:result
+    })
+ 
+});
 export const authController = {
   getCurrentUser,
   signoutUser,

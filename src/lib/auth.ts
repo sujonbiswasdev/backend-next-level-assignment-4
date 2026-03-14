@@ -1,6 +1,7 @@
 import { betterAuth, string } from "better-auth";
 import { prisma } from "./prisma";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { bearer } from "better-auth/plugins";
 
 
 export const auth = betterAuth({
@@ -37,6 +38,9 @@ export const auth = betterAuth({
             }
         }
     },
+    plugins:[
+        bearer()
+    ],
     emailAndPassword: {
         enabled: true,
         autoSignIn:true

@@ -3,6 +3,7 @@ import { auth } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
 import { tokenUtils } from "../../utils/token";
 import AppError from "../../errorHelper/AppError";
+import status from "http-status";
 
 const getCurrentUser = async (id: string) => {
   return await prisma.user.findUnique({
@@ -117,8 +118,6 @@ const signup = async (data: {
 
 const signin = async (
   data: { email: string; password: string },
-  cookies: any,
-  headers: any,
 ) => {
   const existingUesr = await prisma.user.findUnique({
     where: {
@@ -132,17 +131,32 @@ const signin = async (
       password: data.password,
     },
   });
-  if (existingUesr?.status == "suspend") {
-    await auth.api.signOut({
-      headers: {
-        cookie: headers.cookie,
-      },
+     if (result.user.status === "suspend") {
+        throw new AppError(status.UNAUTHORIZED, "User is suspend");
+    }
+
+    const accessToken = tokenUtils.getAccessToken({
+        userId: result.user.id,
+        role: result.user.role,
+        name: result.user.name,
+        email: result.user.email,
+        status: result.user.status,
+        emailVerified: result.user.emailVerified,
     });
-    throw new Error(
-      "Your account has been suspended. Please contact support for assistance.",
-    );
-  }
-  return result;
+
+    const refreshToken = tokenUtils.getRefreshToken({
+        userId: result.user.id,
+        role: result.user.role,
+        name: result.user.name,
+        email: result.user.email,
+        status: result.user.status,
+        emailVerified: result.user.emailVerified,
+    });
+    return {
+        ...result,
+        accessToken,
+        refreshToken,
+    };
 };
 export const authService = {
   getCurrentUser,
