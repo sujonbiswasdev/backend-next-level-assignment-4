@@ -132,30 +132,14 @@ const getAllmeals = async (
     },
   });
 
-  const mealIds = meals.map((meal) => meal.id);
-
-  const reviewStats = await prisma.review.groupBy({
-    by: ["mealId"],
-    where: {
-      mealId: { in: mealIds },
-      parentId: null,
-      rating: { gt: 0 },
-      status: "APPROVED",
-    },
-    _avg: {
-      rating: true,
-    },
-    _count: {
-      rating: true,
-    },
-  });
   const mealsWithStats = meals.map((meal) => {
-    const stats = reviewStats.find((s) => s.mealId === meal.id);
-    return {
-      ...meal,
-      averageRating: stats?._avg?.rating || 0, // Default to 0
-      totalReview: stats?._count?.rating || 0, // Default to 0
-    };
+    const totalReviews = meal.reviews.length;
+    const avgRating =
+      totalReviews > 0
+        ? meal.reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+        : 0;
+
+    return { ...meal, avgRating, totalReviews };
   });
   const total = await prisma.meal.count({ where: { AND: andConditions } });
 

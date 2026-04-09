@@ -27,7 +27,7 @@ CREATE TABLE "user" (
     "emailVerified" BOOLEAN NOT NULL DEFAULT false,
     "image" TEXT,
     "bgimage" TEXT,
-    "phone" VARCHAR(20),
+    "phone" VARCHAR(15) NOT NULL,
     "role" "Role" NOT NULL DEFAULT 'Customer',
     "status" "Status" NOT NULL DEFAULT 'activate',
     "isActive" BOOLEAN NOT NULL DEFAULT true,

@@ -115,10 +115,21 @@ const getNewToken = catchAsync(
     }
 )
 
+const verifyEmail = catchAsync(async (req: Request, res: Response) => {
+  const { email, otp } = req.body;
+  await authService.verifyEmail(email, otp);
+
+  sendResponse(res, {
+    httpStatusCode: status.OK,
+    success: true,
+    message: "Email verified successfully",
+  });
+});
+
 export const authController = {
   getCurrentUser,
   signoutUser,
   signup,
   signin,
-  getNewToken
+  getNewToken,verifyEmail
 };

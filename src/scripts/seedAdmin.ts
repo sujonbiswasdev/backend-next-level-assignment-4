@@ -1,39 +1,22 @@
 import "dotenv/config";
 import { prisma } from "../lib/prisma";
 import { auth } from "../lib/auth";
-import { tokenUtils } from "../utils/token";
-import { Request, Response } from "express";
-import { sendResponse } from "../shared/sendResponse";
 
 export const seedAdmin = async () => {
-  try {
-    console.log(process.env.EMAIL, "initial mail");
 
-    const existingAdmin = await prisma.user.findUnique({
-      where: {
-        email: process.env.EMAIL,
-      },
-    });
-
-    if (existingAdmin) {
-      console.log("Admin already exists");
-      return;
-    }
-
-    const data = await auth.api.signUpEmail({
-      body: {
-        name: "admin user",
-        email: process.env.EMAIL as string,
-        password: process.env.PASSWORD as string,
-        role: "Admin",
-        bgimage: "",
-        phone: "01804935939",
-      },
-    });
-    console.log("Admin created");
-  } catch (error: any) {
-    console.log(error);
-  }
+  await prisma.$connect();
+  console.log("DB Connected");
+  await auth.api.signUpEmail({
+    body: {
+      name: "admin12", // required
+      email: "admin1234@gmail.com", // required
+      password: "admin1234", // required
+      image: "https://images.pexels.com/users/avatars/2159489466/sujon-biswas-288.jpg?auto=compress&fit=crop&h=140&w=140&dpr=1",
+      phone: "01804935939",
+      bgimage: "https://res.cloudinary.com/drmeagmkl/image/upload/v1765536346/sujonbiswas_exfo5o.jpg",
+      role:"Admin",
+    },
+  });
 };
 
-seedAdmin()
+seedAdmin();

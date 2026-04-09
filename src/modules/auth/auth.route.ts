@@ -10,6 +10,7 @@ router.post('/logout',auth([UserRoles.Admin,UserRoles.Customer,UserRoles.Provide
 router.post('/register',authController.signup)
 router.post('/login',authController.signin)
 router.post("/refresh-token", authController.getNewToken)
+router.post("/verify-email", authController.verifyEmail)
 
 
 export const authRouter={router}

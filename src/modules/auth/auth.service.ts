@@ -1,4 +1,3 @@
-import { serialize } from "cookie";
 import { auth } from "../../lib/auth";
 import { prisma } from "../../lib/prisma";
 import { tokenUtils } from "../../utils/token";
@@ -43,14 +42,13 @@ const signup = async (data: {
   email: string;
   password: string;
   image?: string;
-  bgimage: string;
+  bgimage?: string;
   phone: string;
   role: string;
   restaurantName: string;
   address: string;
   description: string;
 }) => {
-  console.log(data,'data')
   const result = await auth.api.signUpEmail({
     body: {
       name: data.name, // required
@@ -62,6 +60,7 @@ const signup = async (data: {
       role: data.role as "Provider" | "Customer",
     },
   });
+  // console.log(result,'d')
 
     if (data.role === "Provider") {
         await prisma.providerProfile.create({
@@ -213,10 +212,31 @@ const getNewToken = async (refreshToken : string, sessionToken : string) => {
     }
 
 }
+
+const verifyEmail = async (email: string, otp: string) => {
+  const result = await auth.api.verifyEmailOTP({
+    body: {
+      email,
+      otp,
+    },
+  });
+
+  if (result.status && !result.user.emailVerified) {
+    await prisma.user.update({
+      where: {
+        email,
+      },
+      data: {
+        emailVerified: true,
+      },
+    });
+  }
+};
 export const authService = {
   getCurrentUser,
   signoutUser,
   signup,
   signin,
-  getNewToken
+  getNewToken,
+  verifyEmail
 };

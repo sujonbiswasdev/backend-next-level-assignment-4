@@ -17,10 +17,17 @@ function errorHandler (err: any, req: Request, res: Response, next: NextFunction
     }
     // ... আপনার বাকি Prisma Check গুলো ঠিক আছে ...
     
+    // Timeout (DB or network)
+    else if (err?.code === 'ETIMEDOUT' || err?.code === 'PROTOCOL_TIMEOUT') {
+        statusCode = status.GATEWAY_TIMEOUT;
+        message = 'Database request timed out. Please retry after a short while.';
+        errorSources.push({ message });
+    }
+    
     // AppError handling (এখানেই সমস্যা ছিল)
     else if (err instanceof AppError) {
         // statusCode অবশ্যই err.statusCode হতে হবে, ৫০০০ নয়!
-        statusCode = err.statusCode || status.BAD_REQUEST; 
+        statusCode = err.statusCode || status.BAD_REQUEST;
         message = err.message;
         errorSources.push({ message: err.message });
     }
