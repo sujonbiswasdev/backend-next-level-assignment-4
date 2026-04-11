@@ -43,22 +43,36 @@ const signoutUser = async (id: string, sessionToken : string) => {
 };
 
 const signup = async (data: ISignupData) => {
-  const existingUser = await prisma.user.findUnique({
-    where: {
-      email: data.email,
-    },
+  const { 
+    name,
+    email,
+    password,
+    image,
+    phone,
+    role,
+    restaurantName,
+    address,
+    description,
+    bgimage
+  } = data;
+  const userExist = await prisma.user.findUnique({
+    where: { email: email },
   });
-  if (existingUser) {
+  if(!image){
+    throw new AppError(status.BAD_REQUEST, "Image is required to register a user.");
+  }
+  if (userExist) {
     throw new AppError(status.CONFLICT,"Email already in use");
   }
+
+  
   const result = await auth.api.signUpEmail({
     body: {
-      name: data.name, // required
-      email: data.email, // required
-      password: data.password, // required
-      image: data.image,
-      phone:data.phone,
-      bgimage: data.bgimage,
+      name,
+      email,
+      password,
+      image,
+      phone,
       role: data.role as "Provider" | "Customer",
     },
   });
@@ -66,9 +80,9 @@ const signup = async (data: ISignupData) => {
         await prisma.providerProfile.create({
           data: {
             userId: result.user.id,
-            restaurantName: data.restaurantName,
-            address: data.address,
-            description: data.description,
+            restaurantName,
+            address,
+            description,
           },
         });
       }

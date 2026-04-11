@@ -2,8 +2,9 @@ import { NextFunction, Request, Response } from "express";
 import z from "zod";
 import { formatZodIssues } from "../utils/handleZodError";
 export const validateRequest = (zodSchema: z.ZodObject) => {
+
   return (req: Request, res: Response, next: NextFunction) => {
-    const parsedResult = zodSchema.safeParse(req.body);
+    console.log(zodSchema,'zod')
     if (req.body.data) {
       try {
         req.body = JSON.parse(req.body.data);
@@ -14,7 +15,7 @@ export const validateRequest = (zodSchema: z.ZodObject) => {
         });
       }
     }
-
+    const parsedResult = zodSchema.safeParse(req.body);
     if (!parsedResult.success) {
       const zodmessage = formatZodIssues(parsedResult.error);
       return res.status(400).json({

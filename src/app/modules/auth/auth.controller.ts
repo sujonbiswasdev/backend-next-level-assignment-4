@@ -57,7 +57,12 @@ const signoutUser = catchAsync(async (req: Request, res: Response) => {
 });
 
 const signup = catchAsync(async (req: Request, res: Response) => {
-  const result = await authService.signup(req.body);
+  const payload = {
+    ...req.body,
+    image:req.file?.path || req.body.image
+};
+console.log(payload,'payload')
+  const result = await authService.signup(payload);
   if (!result) {
     return res.status(400).json({ success: false, message: "Signup failed" });
   }

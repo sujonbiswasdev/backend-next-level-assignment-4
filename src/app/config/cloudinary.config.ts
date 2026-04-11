@@ -46,8 +46,8 @@ export const uploadFileToCloudinary = async (
         cloudinary.uploader.upload_stream(
             {
                 resource_type: "auto",
-                public_id: `planora/${folder}/${uniqueName}`,
-                folder : `planora/${folder}`,
+                public_id: `foodhub/${folder}/${uniqueName}`,
+                folder : `foodhub/${folder}`,
             },
             (error, result) => {
                 if(error){
