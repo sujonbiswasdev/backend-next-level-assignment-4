@@ -10,4 +10,6 @@ router.post('/provider/profile',auth([UserRoles.Provider]),validateRequest(Creat
 router.put('/providers/update',auth([UserRoles.Provider]),validateRequest(UpdateproviderData),providerController.UpateProviderProfile)
 router.get('/providers',providerController.gelAllprovider)
 router.get('/providers/:id',providerController.getProviderWithMeals)
+router.get('/top-providers',providerController.getTopProviders)
+
 export const providerRouter={router}

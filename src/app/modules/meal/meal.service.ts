@@ -12,9 +12,9 @@ import {
 import AppError from "../../errorHelper/AppError";
 import status from "http-status";
 
-const createMeal = async (data: ICreateMealsData, userid: string) => {
+const createMeal = async (data: ICreateMealsData, email: string) => {
   const providerid = await prisma.user.findUnique({
-    where: { id: userid },
+    where: { email},
     include: { provider: { select: { id: true } } },
   });
   if (!providerid) {
@@ -40,32 +40,34 @@ const createMeal = async (data: ICreateMealsData, userid: string) => {
 };
 
 const getAllmeals = async (
-  data: MealQuery,
+  data: Record<string, any>,
   isAvailable?: boolean,
   page?: number,
   limit?: number | undefined,
   skip?: number,
   sortBy?: string | undefined,
   sortOrder?: string | undefined,
+  search?:string | undefined
 ) => {
   const andConditions: MealWhereInput[] | MealWhereInput = [];
   if (data) {
     const orConditions: any[] = [];
-    if (data.meals_name) {
-      orConditions.push({
-        meals_name: {
-          contains: data.meals_name,
-          mode: "insensitive",
+
+    if (search) {
+      orConditions.push(
+        {
+          meals_name: {
+            contains: data.search,
+            mode: "insensitive",
+          },
         },
-      });
-    }
-    if (data.description) {
-      orConditions.push({
-        description: {
-          contains: data.description,
-          mode: "insensitive",
+        {
+          description: {
+            contains: data.search,
+            mode: "insensitive",
+          },
         },
-      });
+      );
     }
     if (data.cuisine) {
       orConditions.push({
@@ -93,7 +95,7 @@ const getAllmeals = async (
   if (data.price) {
     andConditions.push({
       price: {
-        gte: 1,
+        gte: 0,
         lte: Number(data.price),
       },
     });

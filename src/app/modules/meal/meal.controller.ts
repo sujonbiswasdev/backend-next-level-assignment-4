@@ -9,7 +9,7 @@ const createMeal = catchAsync(async (req: Request, res: Response) => {
         if (!user) {
             return res.status(401).json({ success: false, message: "you are unauthorized" })
         }
-        const result = await mealService.createMeal(req.body, user.id as string)
+        const result = await mealService.createMeal(req.body, user.email as string)
         sendResponse(res,{
             httpStatusCode: status.CREATED,
             success:true,
@@ -51,6 +51,7 @@ const DeleteMeals = catchAsync(async(req:Request,res:Response)=>{
 })
 
 const Getallmeals = catchAsync(async(req:Request,res:Response)=>{
+    const {search}=req.query;
 
  const isAvailable = req.query.isAvailable
             ? req.query.isAvailable === 'true'
@@ -62,7 +63,7 @@ const Getallmeals = catchAsync(async(req:Request,res:Response)=>{
 
         const { page, limit, skip, sortBy, sortOrder } = paginationSortingHelper(req.query)
 
-        const result = await mealService.getAllmeals(req.query as any, isAvailable as boolean, page, limit, skip, sortBy, sortOrder)
+        const result = await mealService.getAllmeals(req.query as any, isAvailable as boolean, page, limit, skip, sortBy, sortOrder,search as string)
         sendResponse(res,{
             httpStatusCode:status.OK,
             success:true,

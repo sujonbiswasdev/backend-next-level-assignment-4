@@ -61,5 +61,15 @@ const UpateProviderProfile=catchAsync(async(req:Request,res:Response)=>{
         data:result
     })
 })
+const getTopProviders = catchAsync(async (req: Request, res: Response) => {
+    const result = await providerService.getTopProviders();
+    sendResponse(res, {
+        httpStatusCode: status.OK,
+        success: true,
+        message: "retrieve top providers successfully",
+        data: result
+    });
+});
 
-export const providerController={createProvider,gelAllprovider,getProviderWithMeals,UpateProviderProfile}
+
+export const providerController={createProvider,gelAllprovider,getProviderWithMeals,UpateProviderProfile,getTopProviders}

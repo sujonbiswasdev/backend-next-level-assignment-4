@@ -17,5 +17,4 @@ router.post("/send-otp", authController.sendOtp)
 router.post("/forget-password", authController.forgetPassword)
 router.post("/reset-password", authController.resetPassword)
 
-
 export const authRouter={router}

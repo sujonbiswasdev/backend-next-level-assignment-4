@@ -154,6 +154,68 @@ const getProviderWithMeals = async (id: string) => {
     },
   };
 };
+const getTopProviders = async () => {
+  const providers = await prisma.providerProfile.findMany({
+    include: {
+      user: {
+        select: {
+          name: true,
+          email: true,
+          image: true,
+        },
+      },
+      meals: {
+        include: {
+          reviews: true,
+        },
+      },
+    },
+  });
+
+  const topProviders = providers
+    .map((provider) => {
+      let totalRating = 0;
+      let totalReviews = 0;
+      provider.meals.forEach((meal) => {
+        meal.reviews.forEach((review) => {
+          if (typeof review.rating === "number") {
+            totalRating += review.rating;
+            totalReviews++;
+          }
+        });
+      });
+
+      const averageRating =
+        totalReviews > 0
+          ? Number((totalRating / totalReviews).toFixed(1))
+          : 0;
+
+      return {
+        id: provider.id,
+        restaurantName: provider.restaurantName,
+        ownerName: provider.user?.name || "N/A",
+        email: provider.user?.email || "N/A",
+        address: provider.address,
+        description: provider.description,
+        image: provider.image || provider.user?.image || null,
+        totalReviews,
+        averageRating,
+      };
+    })
+
+
+    .sort((a, b) => {
+      if (b.averageRating !== a.averageRating) {
+        return b.averageRating - a.averageRating;
+      }
+      return b.totalReviews - a.totalReviews;
+    })
+    .slice(0, 15);
+
+  return { topProviders };
+};
+
+
 
 const UpateProviderProfile = async (
   data: Partial<ProviderProfile>,
@@ -189,4 +251,5 @@ export const providerService = {
   getAllProvider,
   getProviderWithMeals,
   UpateProviderProfile,
+  getTopProviders
 };

@@ -14,7 +14,7 @@ const CreateCategory = catchAsync(
     }
     const result = await categoryService.CreateCategory(
       req.body,
-      user.id as string,
+      user.email as string,
     );
     sendResponse(res, {
       httpStatusCode: status.CREATED,

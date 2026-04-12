@@ -4,7 +4,16 @@ import { UpdatecategoryData } from "./category.validation";
 import { ICreateCategory, IUpdateCategory } from "./category.interface";
 import AppError from "../../errorHelper/AppError";
 import status from "http-status";
-const CreateCategory = async (data: ICreateCategory, adminId: string) => {
+const CreateCategory = async (data: ICreateCategory, email: string) => {
+  const adminUser = await prisma.user.findUnique({
+    where: { email },
+  });
+
+  if (!adminUser) {
+    throw new AppError(status.UNAUTHORIZED, "Admin user not found or unauthorized");
+  }
+
+  const adminId = adminUser.id;
   const categorydata = await prisma.category.findUnique({
     where: {
       name: data.name,
