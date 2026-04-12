@@ -157,6 +157,7 @@ const getAllmeals = async (
 };
 
 const getSinglemeals = async (id: string) => {
+  // Get the meal & reviews
   const result = await prisma.meal.findUniqueOrThrow({
     where: {
       id,
@@ -167,17 +168,29 @@ const getSinglemeals = async (id: string) => {
       provider: {
         include: {
           user: true,
+          meals: {
+            include: {
+              reviews: {
+                where: {
+                  parentId: null,
+                  status: "APPROVED",
+                  rating: { gt: 0 },
+                },
+              },
+            },
+          },
         },
       },
       reviews: {
         where: {
           parentId: null,
+          status: "APPROVED",
+          rating: { gt: 0 },
         },
-
         include: {
           replies: {
             include: {
-              customer:true,
+              customer: true,
               replies: true,
             },
           },
@@ -191,40 +204,41 @@ const getSinglemeals = async (id: string) => {
     },
   });
 
-  const ratings = await prisma.review.groupBy({
-    by: ["mealId"],
-    where: {
-      rating: {
-        gt: 0,
-      },
-      parentId: null,
-      meal: {
-        provider: {
-          userId: result.provider.userId,
-        },
-      },
-    },
-    _avg: {
-      rating: true,
-    },
-    _count: {
-      rating: true,
-    },
+  // Calculate single meal statistics
+  const mealTotalReviews = result.reviews.length;
+  const mealAvgRating =
+    mealTotalReviews > 0
+      ? Number(
+          (
+            result.reviews.reduce((sum, review) => sum + review.rating, 0) /
+            mealTotalReviews
+          ).toFixed(1)
+        )
+      : 0;
+
+  // Calculate provider statistics over all approved meals and reviews
+  const providerMeals = result.provider?.meals ?? [];
+  let providerTotalReviews = 0;
+  let providerRatingSum = 0;
+  providerMeals.forEach((meal) => {
+    const ratingReviews = meal.reviews.filter(
+      (review) => typeof review.rating === "number"
+    );
+    providerTotalReviews += ratingReviews.length;
+    providerRatingSum += ratingReviews.reduce((sum, r) => sum + r.rating, 0);
   });
+  const providerAvgRating =
+    providerTotalReviews > 0
+      ? Number((providerRatingSum / providerTotalReviews).toFixed(1))
+      : 0;
 
-  const totalReview = ratings.reduce((sum, r) => sum + r._count.rating, 0);
-
-  const totalRating = ratings.reduce(
-    (sum, r) => sum + (r._avg.rating ?? 0) * r._count.rating,
-    0,
-  );
-
-  const averageRating = totalReview > 0 ? totalRating / totalReview : 0;
   return {
     ...result,
+    avgRating: mealAvgRating,
+    totalReviews: mealTotalReviews,
     providerRating: {
-      totalReview: totalReview??0,
-      averageRating: averageRating ?? 0,
+      averageRating: providerAvgRating,
+      totalReview: providerTotalReviews,
     },
   };
 };
