@@ -2,8 +2,8 @@ import { Request, Response } from "express";
 import status from "http-status";
 import { catchAsync } from "../../shared/catchAsync";
 import { sendResponse } from "../../shared/sendResponse";
-import { StatsService } from "./stats.service";
 import { IRequestUser } from "../../interface/requestUser.interface";
+import { statsService } from "./stats.service";
 
 const getDashboardStatsData = catchAsync(async (req: Request, res: Response) => {
     const user = req.user;
@@ -15,7 +15,7 @@ const getDashboardStatsData = catchAsync(async (req: Request, res: Response) => 
         });
     }
 
-    const result = await StatsService.getDashboardStatsData(user as IRequestUser);
+    const result = await statsService.getDashboardStatsData(user as IRequestUser);
 
     sendResponse(res, {
         httpStatusCode: status.OK,

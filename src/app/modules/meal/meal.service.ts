@@ -328,6 +328,12 @@ const getOwnMeals = async (
             mode: "insensitive",
           },
         },
+        {
+          address: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
       );
     }
 

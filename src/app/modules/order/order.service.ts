@@ -6,6 +6,8 @@ import { CreateorderData } from "./order.validation";
 import AppError from "../../errorHelper/AppError";
 import status from "http-status";
 import { ICreateorderData } from "./order.interface";
+import { OrderWhereInput } from "../../../../generated/prisma/models";
+import { parseDateForPrisma } from "../../utils/parseDate";
 
 const CreateOrder = async (payload: ICreateorderData, customerId: string) => {
   const mealId = payload.items.find((i) => i.mealId);
@@ -14,6 +16,7 @@ const CreateOrder = async (payload: ICreateorderData, customerId: string) => {
       id: mealId?.mealId,
     },
   });
+  
   const mealdata = existingmeals.find((meal) => meal.id == mealId?.mealId);
   const orderexisting = await prisma.order.findMany({
     where: {
@@ -26,6 +29,14 @@ const CreateOrder = async (payload: ICreateorderData, customerId: string) => {
     },
   });
   const existingOrder = orderexisting.filter((item, index) =>item.status=='PLACED');
+  if (existingOrder.length > 0) {
+
+    throw new AppError(
+      409,
+      `There is already a placed order for the meal with id (${mealId?.mealId}). Please wait for the previous order to be completed, or remove the id and name.`
+ 
+    );
+  }
   try {
     const result = await prisma.order.create({
       data: {
@@ -77,15 +88,78 @@ const CreateOrder = async (payload: ICreateorderData, customerId: string) => {
   }
 };
 
-const getOwnmealsOrder = async (userid: string) => {
+const getOwnmealsOrder = async (
+  email?:string,
+  data?: Record<string, any>,
+  page?: number,
+  limit?: number | undefined,
+  skip?: number,
+  sortBy?: string | undefined,
+  sortOrder?: string | undefined,
+  search?:string | undefined
+) => {
+
+
   const existingUser = await prisma.user.findUnique({
-    where: { id: userid },
+    where: { email },
     include: { provider: true },
   });
+  if (!existingUser) {
+    return {
+      success: false,
+      message: "User not found",
+      result: null,
+    };
+  }
+
+  const andConditions: OrderWhereInput[]  = [];
+
+  if (search) {
+    const orConditions: any[] = [];
+    orConditions.push(
+      {
+        first_name: {
+          contains: search,
+          mode: "insensitive",
+        },
+      },
+      {
+        last_name: {
+          contains: search,
+          mode: "insensitive",
+        },
+      },
+    );
+    if (orConditions.length > 0) {
+      andConditions.push({ OR: orConditions });
+    }
+  }
+
+  if (data?.status) {
+    andConditions.push({
+      status: {
+        equals: data.status,
+      },
+    });
+  }
+  if (data?.totalPrice) {
+    andConditions.push({
+      totalPrice: {
+        gte: 0,
+        lte: Number(data.price),
+      },
+    });
+  }
+
+  if (data?.createdAt) {
+    const dateRange = parseDateForPrisma(data.createdAt);
+    andConditions.push({ createdAt: dateRange.gte });
+  }
   if (existingUser?.role == "Customer") {
     const result = await prisma.order.findMany({
       where: {
-        customerId: userid,
+        customerId: existingUser.id,
+        AND:andConditions
       },
       include: {
         orderitem: {
@@ -108,8 +182,11 @@ const getOwnmealsOrder = async (userid: string) => {
 
   if (existingUser?.role == "Provider") {
     const result = await prisma.order.findMany({
+      take: limit,
+      skip,
       where: {
         providerId: existingUser.provider?.id,
+        AND:andConditions
       },
       include: {
         orderitem: {
@@ -119,11 +196,30 @@ const getOwnmealsOrder = async (userid: string) => {
         },
       },
     });
-
+    let total = 0;
+    if (existingUser?.role === "Provider") {
+      total = await prisma.order.count({
+        where: {
+          providerId: existingUser.provider?.id,
+          AND: andConditions,
+        },
+      });
+    } else if (existingUser?.role === "Customer") {
+      total = await prisma.order.count({
+        where: {
+          customerId: existingUser.id,
+          AND: andConditions,
+        },
+      });
+    }
     return {
-      success: true,
-      message: `your own meals orders retrieve successfully`,
       result,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalpage: Math.ceil(total / (limit || 1)),
+      },
     };
   }
 };

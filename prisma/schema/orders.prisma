@@ -13,7 +13,6 @@ model Order {
   customer   User            @relation(fields: [customerId], references: [id], onDelete: Cascade)
   provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)
   orderitem  Orderitem[]
-
   @@map("order")
 }
 
