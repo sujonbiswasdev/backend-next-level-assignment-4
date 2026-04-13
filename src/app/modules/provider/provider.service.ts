@@ -173,8 +173,8 @@ const getProviderWithMeals = async (id: string) => {
   return {
     result: {
       ...provider,
-      totalReview: totalReview || 0,
-      averageRating: Number(averageRating.toFixed(1)) || 0,
+      totalReviews: totalReview || 0,
+      avgRating: Number(averageRating.toFixed(1)) || 0,
     },
   };
 };
@@ -217,7 +217,7 @@ const getTopProviders = async () => {
       });
  
 
-      const averageRating =
+      const avgRating =
         totalReviews > 0
           ? Number((totalRating / totalReviews).toFixed(1))
           : 0;
@@ -231,14 +231,14 @@ const getTopProviders = async () => {
         description: provider.description,
         image: provider.image || provider.user?.image || null,
         totalReviews,
-        averageRating,
+        avgRating,
       };
     })
 
 
     .sort((a, b) => {
-      if (b.averageRating !== a.averageRating) {
-        return b.averageRating - a.averageRating;
+      if (b.avgRating !== a.avgRating) {
+        return b.avgRating - a.avgRating;
       }
       return b.totalReviews - a.totalReviews;
     })
@@ -251,13 +251,13 @@ const getTopProviders = async () => {
 
 const UpateProviderProfile = async (
   data: Partial<ProviderProfile>,
-  userid: string,
+  email: string,
 ) => {
   if (!data) {
     throw new AppError(status.BAD_REQUEST, "no data provided for update");
   }
   const providerinfo = await prisma.user.findUnique({
-    where: { id: userid },
+    where: { email },
     include: {
       provider: true,
     },

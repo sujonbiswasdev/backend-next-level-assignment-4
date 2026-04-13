@@ -57,7 +57,7 @@ const UpateProviderProfile=catchAsync(async(req:Request,res:Response)=>{
         if (!user) {
            return res.status(401).json({ success: false, message: "you are unauthorized" })
         }
-        const result =await providerService.UpateProviderProfile(req.body,user.id)
+        const result =await providerService.UpateProviderProfile(req.body,user.email)
     if(!result){
         sendResponse(res,{
             httpStatusCode:status.BAD_REQUEST,

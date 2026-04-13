@@ -7,7 +7,7 @@ import { CreateproviderData, UpdateproviderData } from "./provider.validation";
 
 const router=Router()
 router.post('/provider/profile',auth([UserRoles.Provider]),validateRequest(CreateproviderData),providerController.createProvider)
-router.put('/providers/update',auth([UserRoles.Provider]),validateRequest(UpdateproviderData),providerController.UpateProviderProfile)
+router.put('/provider/update',auth([UserRoles.Provider]),validateRequest(UpdateproviderData),providerController.UpateProviderProfile)
 router.get('/providers',providerController.gelAllprovider)
 router.get('/providers/:id',providerController.getProviderWithMeals)
 router.get('/top-providers',providerController.getTopProviders)

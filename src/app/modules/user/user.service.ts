@@ -109,14 +109,14 @@ const getUserprofile = async (id: string) => {
 
 const UpateUserProfile = async (
   data: Partial<User & Account>,
-  userid: string,
+  email: string,
 ) => {
 
   if (!data) {
     throw new AppError(400,"your data isn't found,please provide a information");
   }
   const userinfo = await prisma.user.findUnique({
-    where: { id: userid },
+    where: { email:email },
     include: {
       accounts: true,
     },
@@ -126,7 +126,7 @@ const UpateUserProfile = async (
   }
   const isCustomer = userinfo.role == "Customer";
   const result = await prisma.user.update({
-    where: { id: userid },
+    where: { email },
     data: {
       name: data.name,
       image: data.image,
@@ -136,7 +136,7 @@ const UpateUserProfile = async (
       ...(isCustomer ? {} : { email: data.email }),
       accounts: {
         updateMany: {
-          where: { userId: userid },
+          where: { userId: userinfo.id },
           data: {
             password: data.password,
           },

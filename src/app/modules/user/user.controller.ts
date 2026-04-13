@@ -62,7 +62,7 @@ const UpateUserProfile = catchAsync(async (req: Request, res: Response) => {
   }
   const result = await UserService.UpateUserProfile(
     req.body,
-    user.id as string,
+    user.email as string,
   );
   sendResponse(res, {
     httpStatusCode: status.OK,
