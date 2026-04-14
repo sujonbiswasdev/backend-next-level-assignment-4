@@ -1,7 +1,7 @@
 model ProviderProfile {
   id             String   @id @default(uuid())
   userId         String   @unique
-  restaurantName String   @db.VarChar(100)
+  restaurantName String  @unique @db.VarChar(100)
   address        String   @db.VarChar(200)
   description    String?
   image          String?  @db.VarChar(100)

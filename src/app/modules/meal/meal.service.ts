@@ -118,7 +118,9 @@ const getAllmeals = async (
       status: "APPROVED",
     },
     include: {
-      provider: true,
+      provider: {
+        include:{user:true}
+      },
       reviews: {
         
         where: {

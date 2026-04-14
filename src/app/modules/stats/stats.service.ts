@@ -2,7 +2,7 @@ import status from "http-status";
 import AppError from "../../errorHelper/AppError";
 import { IRequestUser } from "../../interface/requestUser.interface";
 import { prisma } from "../../lib/prisma";
-import { Role } from "../../../../generated/prisma/enums";
+import { PaymentStatus, Role } from "../../../../generated/prisma/enums";
 
 const getDashboardStatsData = async (user : IRequestUser) => {
     // Check if user exists (based on userId)
@@ -57,10 +57,24 @@ export const getAdminDashboardStats = async () => {
       prisma.order.count({ where: { status:"READY" } }),
     ]);
 
-    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const revenueResult = await prisma.payment.aggregate({
+      _sum: { amount: true },
+      where: { status: PaymentStatus.PAID },
+    });
+    const totalRevenue = revenueResult._sum.amount ?? 0;
 
+    const payments = await prisma.payment.findMany({
+      where: {  status: PaymentStatus.PAID },
+      select: { amount: true, createdAt: true },
+    });
+
+    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
     const monthlyRevenue: Record<number, number> = {};
+
+    payments.forEach(payment => {
+      const month = payment.createdAt.getMonth();
+      monthlyRevenue[month] = (monthlyRevenue[month] || 0) + Number(payment.amount);
+    });
 
     const barChartData: IBarChartData[] = monthNames.map((month, idx) => ({
       month,
@@ -73,6 +87,8 @@ export const getAdminDashboardStats = async () => {
         reviewCount,
         userCount,
       },
+      totalRevenue,
+      monthlyRevenue:barChartData,
      order:{
       cancelledorder,
       deliveredorder,
@@ -151,11 +167,37 @@ export const getProviderDashboardStats = async (userId: string) => {
         userId:userId
       }, status:"READY" } }),
     ]);
+
+    const revenueResult = await prisma.payment.aggregate({
+      _sum: { amount: true },
+      where: { userId, status: PaymentStatus.PAID },
+    });
+    const totalRevenue = revenueResult._sum.amount ?? 0;
+
+    const payments = await prisma.payment.findMany({
+      where: { userId, status: PaymentStatus.PAID },
+      select: { amount: true, createdAt: true },
+    });
+
+    const monthNames = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+    const monthlyRevenue: Record<number, number> = {};
+
+    payments.forEach(payment => {
+      const month = payment.createdAt.getMonth();
+      monthlyRevenue[month] = (monthlyRevenue[month] || 0) + Number(payment.amount);
+    });
+
+    const barChartData: IBarChartData[] = monthNames.map((month, idx) => ({
+      month,
+      revenue: monthlyRevenue[idx] ?? 0,
+    }));
     return {
       counts: {
         mealsCount:mealsCount,
         orderCount,
       },
+      totalRevenue,
+      monthlyRevenue:barChartData,
       mealStatus: {
         approvedmeals,
         pendingmeals,

@@ -225,6 +225,16 @@ const getOwnmealsOrder = async (
       },
     });
   }
+
+
+  if (data?.paymentStatus) {
+    andConditions.push({
+      paymentStatus: {
+        equals: data.paymentStatus,
+      },
+    });
+  }
+
   if (data?.totalPrice) {
     andConditions.push({
       totalPrice: {
@@ -377,7 +387,7 @@ const UpdateOrderStatus = async (
   }
 
   if (role == "Provider" && status === "CANCELLED") {
-    return "CANCELLED only Customer Change";
+    throw new AppError(400,"CANCELLED only Customer Change");
   }
 
   if (role == "Provider") {
@@ -406,7 +416,7 @@ const UpdateOrderStatus = async (
 
 const getAllorder = async (role: string) => {
   if (role !== "Admin") {
-    return "view all order only Admin";
+    throw new AppError(403, "View all orders is only allowed for Admin users.");
   }
   const result = await prisma.order.findMany({
     include: {
