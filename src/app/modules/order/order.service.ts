@@ -226,7 +226,11 @@ const getOwnmealsOrder = async (
     });
   }
 
-
+  if (data?.phone) {
+    andConditions.push({
+      phone:data.phone
+    });
+  }
   if (data?.paymentStatus) {
     andConditions.push({
       paymentStatus: {
@@ -239,7 +243,7 @@ const getOwnmealsOrder = async (
     andConditions.push({
       totalPrice: {
         gte: 0,
-        lte: Number(data.price),
+        lte: Number(data.totalPrice),
       },
     });
   }
@@ -412,21 +416,124 @@ const UpdateOrderStatus = async (
       };
     }
   }
+
+  if (role === "Admin") {
+    const result = await prisma.order.update({
+      where: {
+        id,
+      },
+      data: {
+        status,
+      },
+    });
+    return {
+      success: true,
+      message: `update order status successfully`,
+      result,
+    };
+}
 };
 
-const getAllorder = async (role: string) => {
+const getAllorder = async (
+  role?:string,
+  data?: Record<string, any>,
+  page?: number,
+  limit?: number | undefined,
+  skip?: number,
+  sortBy?: string | undefined,
+  sortOrder?: string | undefined,
+  search?:string | undefined) => {
   if (role !== "Admin") {
     throw new AppError(403, "View all orders is only allowed for Admin users.");
   }
+
+
+  const andConditions: OrderWhereInput[]  = [];
+
+  if (search) {
+    const orConditions: any[] = [];
+    orConditions.push(
+      {
+        first_name: {
+          contains: search,
+          mode: "insensitive",
+        },
+      },
+      {
+        last_name: {
+          contains: search,
+          mode: "insensitive",
+        },
+      },
+    );
+    if (orConditions.length > 0) {
+      andConditions.push({ OR: orConditions });
+    }
+  }
+
+  if (data?.status) {
+    andConditions.push({
+      status: {
+        equals: data.status,
+      },
+    });
+  }
+
+  if (data?.phone) {
+    andConditions.push({
+      phone:data.phone
+    });
+  }
+  if (data?.paymentStatus) {
+    andConditions.push({
+      paymentStatus: {
+        equals: data.paymentStatus,
+      },
+    });
+  }
+
+  if (data?.totalPrice) {
+    andConditions.push({
+      totalPrice: {
+        gte: 0,
+        lte: Number(data.totalPrice),
+      },
+    });
+  }
+
+  if (data?.createdAt) {
+    const dateRange = parseDateForPrisma(data.createdAt);
+    andConditions.push({ createdAt: dateRange.gte });
+  }
   const result = await prisma.order.findMany({
-    include: {
-      orderitem: true,
+    where:{
+      AND:andConditions
     },
+      include: {
+        orderitem: {
+          include: {
+            meal: true,
+          },
+        },
+      },
     orderBy: {
       createdAt: "desc",
     },
   });
-  return result;
+  const total = await prisma.order.count({
+    where: {
+      AND: andConditions,
+    },
+  });
+  return {
+    result,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalpage: Math.ceil(total / (limit || 1)),
+    },
+  };
 };
 
 const customerOrderStatusTrack = async (mealid: string, userid: string) => {
@@ -536,6 +643,29 @@ const getSingleOrder = async (id: string) => {
   };
 };
 
+const deleteOrder = async (id: string, role: string) => {
+
+
+
+  const existingOrder = await prisma.order.findUnique({
+    where: { id },
+  });
+
+  if (!existingOrder) {
+    throw new AppError(status.NOT_FOUND, "Order not found");
+  }
+ const deletedOrder = await prisma.order.delete({
+    where: { id },
+  });
+
+  return {
+    success: true,
+    message: "Order deleted successfully",
+    result: deletedOrder,
+  };
+};
+
+
 export const ServiceOrder = {
   CreateOrder,
   getOwnmealsOrder,
@@ -544,5 +674,6 @@ export const ServiceOrder = {
   customerOrderStatusTrack,
   CustomerRunningAndOldOrder,
   getSingleOrder,
-  getOwnPaymentService
+  getOwnPaymentService,
+  deleteOrder
 };

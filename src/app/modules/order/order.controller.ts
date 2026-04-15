@@ -56,10 +56,12 @@ const UpdateOrderStatus = catchAsync(async (req: Request, res: Response) => {
 )
 const getAllOrder = catchAsync(async (req: Request, res: Response) => {
     const user = req.user
+    const {search}=req.query
     if (!user) {
         return res.status(status.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" })
     }
-    const result = await ServiceOrder.getAllorder(user.role)
+    const { page, limit, skip, sortBy, sortOrder } = paginationSortingHelper(req.query)
+    const result = await ServiceOrder.getAllorder(user.role as string,req.query as any, page, limit, skip, sortBy, sortOrder,search as string)
     if (!result) {
         sendResponse(res,{
             httpStatusCode:status.BAD_REQUEST,
@@ -84,6 +86,12 @@ const customerOrderStatusTrack = catchAsync(async (req: Request, res: Response) 
         if (!users) {
            return res.status(401).json({ success: false, message: "you are unauthorized" })
         }
+
+        const { page, limit, skip, sortBy, sortOrder } = paginationSortingHelper(
+            req.query,
+          );
+      
+          const { search } = req.query;
         const result = await ServiceOrder.customerOrderStatusTrack(req.params.id as string,users.id)
             if(!result?.success){
                 sendResponse(res,{
@@ -159,6 +167,30 @@ const getOwnPayment = catchAsync(async (req: Request, res: Response) => {
     });
   });
 
+const deleteOrder = catchAsync(async (req: Request, res: Response) => {
+    const user = req.user;
+    if (!user) {
+        return res.status(401).json({ success: false, message: "you are unauthorized" });
+    }
+    const orderId = req.params.id as string;
+    try {
+        const result = await ServiceOrder.deleteOrder(orderId, user.role);
+        sendResponse(res, {
+            httpStatusCode: status.OK,
+            success: true,
+            message: "Order deleted successfully",
+            data: result,
+        });
+    } catch (error: any) {
+        sendResponse(res, {
+            httpStatusCode: error.statusCode || status.BAD_REQUEST,
+            success: false,
+            message: error.message || "Failed to delete order",
+            data: error,
+        });
+    }
+});
+
 export const OrderController = {
     createOrder,
     getOwnmealsOrder,
@@ -167,5 +199,6 @@ export const OrderController = {
     customerOrderStatusTrack,
     CustomerRunningAndOldOrder,
     getSingleOrder,
-    getOwnPayment
+    getOwnPayment,
+    deleteOrder
 }

@@ -11,7 +11,8 @@ router.get('/orders/meal/:id/status',auth([UserRoles.Customer]),OrderController.
 router.get('/myorders/status',auth([UserRoles.Customer]),OrderController.CustomerRunningAndOldOrder)
 router.get('/orders/all',auth([UserRoles.Admin]),OrderController.getAllOrder)
 router.get('/orders',auth([UserRoles.Customer,UserRoles.Provider]),OrderController.getOwnmealsOrder)
-router.patch('/provider/orders/:id',auth([UserRoles.Provider,UserRoles.Customer]),OrderController.UpdateOrderStatus)
+router.patch('/provider/orders/:id',auth([UserRoles.Provider,UserRoles.Customer,UserRoles.Admin]),OrderController.UpdateOrderStatus)
 router.get('/orders/:id',auth([UserRoles.Customer]),OrderController.getSingleOrder)
+router.delete('/order/:id',auth([UserRoles.Admin]),OrderController.deleteOrder)
 router.get("/order/:id/own-payment", auth([UserRoles.Customer]), OrderController.getOwnPayment);
 export const OrderRouter={router}

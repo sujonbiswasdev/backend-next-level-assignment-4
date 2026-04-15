@@ -19,7 +19,7 @@ var config = {
   "clientVersion": "7.7.0",
   "engineVersion": "75cbdc1eb7150937890ad5465d861175c6624711",
   "activeProvider": "postgresql",
-  "inlineSchema": 'model User {\n  id            String           @id\n  name          String\n  email         String           @unique\n  emailVerified Boolean          @default(false)\n  image         String?\n  bgimage       String?          @default("https://images.pexels.com/photos/8250184/pexels-photo-8250184.jpeg")\n  phone         String?          @db.VarChar(15)\n  role          Role             @default(Customer)\n  status        Status           @default(activate)\n  isActive      Boolean          @default(true)\n  createdAt     DateTime         @default(now())\n  updatedAt     DateTime         @updatedAt\n  accounts      Account[]\n  category      Category[]\n  orders        Order[]\n  provider      ProviderProfile?\n  reviews       Review[]\n  sessions      Session[]\n\n  @@map("user")\n}\n\nmodel Session {\n  id        String   @id\n  expiresAt DateTime\n  token     String   @unique\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  ipAddress String?\n  userAgent String?\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@index([userId])\n  @@map("session")\n}\n\nmodel Account {\n  id                    String    @id\n  accountId             String\n  providerId            String\n  userId                String\n  accessToken           String?\n  refreshToken          String?\n  idToken               String?\n  accessTokenExpiresAt  DateTime?\n  refreshTokenExpiresAt DateTime?\n  scope                 String?\n  password              String?\n  createdAt             DateTime  @default(now())\n  updatedAt             DateTime  @updatedAt\n  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@index([userId])\n  @@map("account")\n}\n\nmodel Verification {\n  id         String   @id\n  identifier String\n  value      String\n  expiresAt  DateTime\n  createdAt  DateTime @default(now())\n  updatedAt  DateTime @updatedAt\n\n  @@index([identifier])\n  @@map("verification")\n}\n\nenum Role {\n  Customer\n  Provider\n  Admin\n}\n\nenum Status {\n  activate\n  suspend\n}\n\nmodel Category {\n  id        String   @id @default(uuid())\n  adminId   String\n  name      String   @unique @db.VarChar(150)\n  image     String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  user      User     @relation(fields: [adminId], references: [id], onDelete: Cascade)\n  meals     Meal[]\n\n  @@map("categories")\n}\n\nmodel Meal {\n  id                String            @id @default(uuid())\n  meals_name        String            @db.VarChar(100)\n  description       String?\n  image             String?\n  price             Int\n  isAvailable       Boolean           @default(true)\n  dietaryPreference DietaryPreference @default(HALAL)\n  providerId        String\n  category_name     String\n  cuisine           Cuisine           @default(BANGLEDESHI)\n  status            MealsStatus       @default(APPROVED)\n  createdAt         DateTime          @default(now())\n  updatedAt         DateTime          @updatedAt\n  category          Category          @relation(fields: [category_name], references: [name], onDelete: Cascade)\n  provider          ProviderProfile   @relation(fields: [providerId], references: [id], onDelete: Cascade)\n  orderitem         Orderitem[]\n  reviews           Review[]\n\n  @@map("meal")\n}\n\nenum DietaryPreference {\n  HALAL\n  VEGAN\n  VEGETARIAN\n  ANY\n  GLUTEN_FREE\n  KETO\n  PALEO\n  DAIRY_FREE\n  NUT_FREE\n  LOW_SUGAR\n}\n\nenum Cuisine {\n  BANGLEDESHI\n  ITALIAN\n  CHINESE\n  INDIAN\n  MEXICAN\n  THAI\n  JAPANESE\n  FRENCH\n  MEDITERRANEAN\n  AMERICAN\n  MIDDLE_EASTERN\n}\n\nenum MealsStatus {\n  PENDING\n  APPROVED\n  REJECTED\n}\n\nmodel Order {\n  id         String          @id @default(uuid())\n  customerId String\n  providerId String\n  first_name String?\n  last_name  String?\n  status     OrderStatus     @default(PLACED)\n  totalPrice Int\n  phone      String?\n  address    String\n  createdAt  DateTime        @default(now())\n  updatedAt  DateTime        @updatedAt\n  customer   User            @relation(fields: [customerId], references: [id], onDelete: Cascade)\n  provider   ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)\n  orderitem  Orderitem[]\n\n  @@map("order")\n}\n\nmodel Orderitem {\n  id        String   @id @default(uuid())\n  orderId   String\n  price     Float\n  quantity  Int\n  mealId    String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  meal      Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade)\n  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)\n\n  @@map("orderitem")\n}\n\nenum OrderStatus {\n  PLACED\n  PREPARING\n  READY\n  DELIVERED\n  CANCELLED\n}\n\nmodel ProviderProfile {\n  id             String   @id @default(uuid())\n  userId         String   @unique\n  restaurantName String   @db.VarChar(100)\n  address        String   @db.VarChar(200)\n  description    String?\n  image          String?  @db.VarChar(100)\n  createdAt      DateTime @default(now())\n  updatedAt      DateTime @updatedAt\n  meals          Meal[]\n  orders         Order[]\n  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@map("providerprofile")\n}\n\nmodel Review {\n  id         String       @id @default(uuid())\n  customerId String\n  mealId     String\n  parentId   String?\n  rating     Int\n  status     ReviewStatus @default(APPROVED)\n  comment    String\n  createdAt  DateTime     @default(now())\n  updatedAt  DateTime     @updatedAt\n  customer   User         @relation(fields: [customerId], references: [id], onDelete: Cascade)\n  meal       Meal         @relation(fields: [mealId], references: [id], onDelete: Cascade)\n  parent     Review?      @relation("reviewsReply", fields: [parentId], references: [id], onDelete: Cascade)\n  replies    Review[]     @relation("reviewsReply")\n\n  @@map("review")\n}\n\nenum ReviewStatus {\n  APPROVED\n  REJECTED\n}\n\ngenerator client {\n  provider = "prisma-client"\n  output   = "../../generated/prisma"\n}\n\ndatasource db {\n  provider = "postgresql"\n}\n',
+  "inlineSchema": 'model User {\n  id            String           @id\n  name          String\n  email         String           @unique\n  emailVerified Boolean          @default(false)\n  image         String?\n  bgimage       String?          @default("https://images.pexels.com/photos/8250184/pexels-photo-8250184.jpeg")\n  phone         String?          @db.VarChar(15)\n  role          Role             @default(Customer)\n  status        Status           @default(activate)\n  isActive      Boolean          @default(true)\n  createdAt     DateTime         @default(now())\n  updatedAt     DateTime         @updatedAt\n  accounts      Account[]\n  category      Category[]\n  payments      Payment[]\n  orders        Order[]\n  provider      ProviderProfile?\n  reviews       Review[]\n  sessions      Session[]\n\n  @@map("user")\n}\n\nmodel Session {\n  id        String   @id\n  expiresAt DateTime\n  token     String   @unique\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  ipAddress String?\n  userAgent String?\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@index([userId])\n  @@map("session")\n}\n\nmodel Account {\n  id                    String    @id\n  accountId             String\n  providerId            String\n  userId                String\n  accessToken           String?\n  refreshToken          String?\n  idToken               String?\n  accessTokenExpiresAt  DateTime?\n  refreshTokenExpiresAt DateTime?\n  scope                 String?\n  password              String?\n  createdAt             DateTime  @default(now())\n  updatedAt             DateTime  @updatedAt\n  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@index([userId])\n  @@map("account")\n}\n\nmodel Verification {\n  id         String   @id\n  identifier String\n  value      String\n  expiresAt  DateTime\n  createdAt  DateTime @default(now())\n  updatedAt  DateTime @updatedAt\n\n  @@index([identifier])\n  @@map("verification")\n}\n\nenum Role {\n  Customer\n  Provider\n  Admin\n}\n\nenum Status {\n  activate\n  suspend\n}\n\nmodel Category {\n  id        String   @id @default(uuid())\n  adminId   String\n  name      String   @unique @db.VarChar(150)\n  image     String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  user      User     @relation(fields: [adminId], references: [id], onDelete: Cascade)\n  meals     Meal[]\n\n  @@map("categories")\n}\n\nenum PaymentStatus {\n  PAID\n  UNPAID\n  FREE\n}\n\nmodel Meal {\n  id                String            @id @default(uuid())\n  meals_name        String            @db.VarChar(100)\n  description       String?\n  image             String?\n  price             Int\n  isAvailable       Boolean           @default(true)\n  dietaryPreference DietaryPreference @default(HALAL)\n  providerId        String\n  category_name     String\n  deliverycharge    Int\n  cuisine           Cuisine           @default(BANGLEDESHI)\n  status            MealsStatus       @default(APPROVED)\n  createdAt         DateTime          @default(now())\n  updatedAt         DateTime          @updatedAt\n  category          Category          @relation(fields: [category_name], references: [name], onDelete: Cascade)\n  provider          ProviderProfile   @relation(fields: [providerId], references: [id], onDelete: Cascade)\n  orderitem         Orderitem[]\n  reviews           Review[]\n  payment           Payment[]\n\n  @@map("meal")\n}\n\nenum DietaryPreference {\n  HALAL\n  VEGAN\n  VEGETARIAN\n  ANY\n  GLUTEN_FREE\n  KETO\n  PALEO\n  DAIRY_FREE\n  NUT_FREE\n  LOW_SUGAR\n}\n\nenum Cuisine {\n  BANGLEDESHI\n  ITALIAN\n  CHINESE\n  INDIAN\n  MEXICAN\n  THAI\n  JAPANESE\n  FRENCH\n  MEDITERRANEAN\n  AMERICAN\n  MIDDLE_EASTERN\n}\n\nenum MealsStatus {\n  PENDING\n  APPROVED\n  REJECTED\n}\n\nmodel Order {\n  id            String          @id @default(uuid())\n  customerId    String\n  providerId    String\n  first_name    String?\n  last_name     String?\n  status        OrderStatus     @default(PLACED)\n  totalPrice    Int\n  phone         String?\n  address       String\n  createdAt     DateTime        @default(now())\n  updatedAt     DateTime        @updatedAt\n  customer      User            @relation(fields: [customerId], references: [id], onDelete: Cascade)\n  provider      ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)\n  orderitem     Orderitem[]\n  payment       Payment?\n  paymentStatus PaymentStatus   @default(UNPAID)\n\n  @@map("order")\n}\n\nmodel Orderitem {\n  id        String   @id @default(uuid())\n  orderId   String\n  price     Float\n  quantity  Int\n  mealId    String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  meal      Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade)\n  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)\n\n  @@map("orderitem")\n}\n\nenum OrderStatus {\n  PLACED\n  PREPARING\n  READY\n  DELIVERED\n  CANCELLED\n}\n\nmodel Payment {\n  id String @id @default(uuid())\n\n  userId             String\n  mealId             String\n  stripeEventId      String? @unique\n  transactionId      String? @unique @db.Uuid()\n  paymentGatewayData Json?\n\n  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)\n  meal Meal @relation(fields: [mealId], references: [id], onDelete: Cascade, onUpdate: Cascade)\n\n  amount  Float\n  status  PaymentStatus @default(UNPAID)\n  orderId String        @unique\n  order   Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)\n\n  createdAt DateTime @default(now())\n}\n\nmodel ProviderProfile {\n  id             String   @id @default(uuid())\n  userId         String   @unique\n  restaurantName String   @unique @db.VarChar(100)\n  address        String   @db.VarChar(200)\n  description    String?\n  image          String?  @db.VarChar(100)\n  createdAt      DateTime @default(now())\n  updatedAt      DateTime @updatedAt\n  meals          Meal[]\n  orders         Order[]\n  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@map("providerprofile")\n}\n\nmodel Review {\n  id         String       @id @default(uuid())\n  customerId String\n  mealId     String\n  parentId   String?\n  rating     Int\n  status     ReviewStatus @default(APPROVED)\n  comment    String\n  createdAt  DateTime     @default(now())\n  updatedAt  DateTime     @updatedAt\n  customer   User         @relation(fields: [customerId], references: [id], onDelete: Cascade)\n  meal       Meal         @relation(fields: [mealId], references: [id], onDelete: Cascade)\n  parent     Review?      @relation("reviewsReply", fields: [parentId], references: [id], onDelete: Cascade)\n  replies    Review[]     @relation("reviewsReply")\n\n  @@map("review")\n}\n\nenum ReviewStatus {\n  APPROVED\n  REJECTED\n}\n\ngenerator client {\n  provider = "prisma-client"\n  output   = "../../generated/prisma"\n}\n\ndatasource db {\n  provider = "postgresql"\n}\n',
   "runtimeDataModel": {
     "models": {},
     "enums": {},
@@ -30,10 +30,10 @@ var config = {
     "graph": ""
   }
 };
-config.runtimeDataModel = JSON.parse('{"models":{"User":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"email","kind":"scalar","type":"String"},{"name":"emailVerified","kind":"scalar","type":"Boolean"},{"name":"image","kind":"scalar","type":"String"},{"name":"bgimage","kind":"scalar","type":"String"},{"name":"phone","kind":"scalar","type":"String"},{"name":"role","kind":"enum","type":"Role"},{"name":"status","kind":"enum","type":"Status"},{"name":"isActive","kind":"scalar","type":"Boolean"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"accounts","kind":"object","type":"Account","relationName":"AccountToUser"},{"name":"category","kind":"object","type":"Category","relationName":"CategoryToUser"},{"name":"orders","kind":"object","type":"Order","relationName":"OrderToUser"},{"name":"provider","kind":"object","type":"ProviderProfile","relationName":"ProviderProfileToUser"},{"name":"reviews","kind":"object","type":"Review","relationName":"ReviewToUser"},{"name":"sessions","kind":"object","type":"Session","relationName":"SessionToUser"}],"dbName":"user"},"Session":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"expiresAt","kind":"scalar","type":"DateTime"},{"name":"token","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"ipAddress","kind":"scalar","type":"String"},{"name":"userAgent","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"user","kind":"object","type":"User","relationName":"SessionToUser"}],"dbName":"session"},"Account":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"accountId","kind":"scalar","type":"String"},{"name":"providerId","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"accessToken","kind":"scalar","type":"String"},{"name":"refreshToken","kind":"scalar","type":"String"},{"name":"idToken","kind":"scalar","type":"String"},{"name":"accessTokenExpiresAt","kind":"scalar","type":"DateTime"},{"name":"refreshTokenExpiresAt","kind":"scalar","type":"DateTime"},{"name":"scope","kind":"scalar","type":"String"},{"name":"password","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"user","kind":"object","type":"User","relationName":"AccountToUser"}],"dbName":"account"},"Verification":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"identifier","kind":"scalar","type":"String"},{"name":"value","kind":"scalar","type":"String"},{"name":"expiresAt","kind":"scalar","type":"DateTime"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"}],"dbName":"verification"},"Category":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"adminId","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"image","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"user","kind":"object","type":"User","relationName":"CategoryToUser"},{"name":"meals","kind":"object","type":"Meal","relationName":"CategoryToMeal"}],"dbName":"categories"},"Meal":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"meals_name","kind":"scalar","type":"String"},{"name":"description","kind":"scalar","type":"String"},{"name":"image","kind":"scalar","type":"String"},{"name":"price","kind":"scalar","type":"Int"},{"name":"isAvailable","kind":"scalar","type":"Boolean"},{"name":"dietaryPreference","kind":"enum","type":"DietaryPreference"},{"name":"providerId","kind":"scalar","type":"String"},{"name":"category_name","kind":"scalar","type":"String"},{"name":"cuisine","kind":"enum","type":"Cuisine"},{"name":"status","kind":"enum","type":"MealsStatus"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"category","kind":"object","type":"Category","relationName":"CategoryToMeal"},{"name":"provider","kind":"object","type":"ProviderProfile","relationName":"MealToProviderProfile"},{"name":"orderitem","kind":"object","type":"Orderitem","relationName":"MealToOrderitem"},{"name":"reviews","kind":"object","type":"Review","relationName":"MealToReview"}],"dbName":"meal"},"Order":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"customerId","kind":"scalar","type":"String"},{"name":"providerId","kind":"scalar","type":"String"},{"name":"first_name","kind":"scalar","type":"String"},{"name":"last_name","kind":"scalar","type":"String"},{"name":"status","kind":"enum","type":"OrderStatus"},{"name":"totalPrice","kind":"scalar","type":"Int"},{"name":"phone","kind":"scalar","type":"String"},{"name":"address","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"customer","kind":"object","type":"User","relationName":"OrderToUser"},{"name":"provider","kind":"object","type":"ProviderProfile","relationName":"OrderToProviderProfile"},{"name":"orderitem","kind":"object","type":"Orderitem","relationName":"OrderToOrderitem"}],"dbName":"order"},"Orderitem":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"orderId","kind":"scalar","type":"String"},{"name":"price","kind":"scalar","type":"Float"},{"name":"quantity","kind":"scalar","type":"Int"},{"name":"mealId","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"meal","kind":"object","type":"Meal","relationName":"MealToOrderitem"},{"name":"order","kind":"object","type":"Order","relationName":"OrderToOrderitem"}],"dbName":"orderitem"},"ProviderProfile":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"restaurantName","kind":"scalar","type":"String"},{"name":"address","kind":"scalar","type":"String"},{"name":"description","kind":"scalar","type":"String"},{"name":"image","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"meals","kind":"object","type":"Meal","relationName":"MealToProviderProfile"},{"name":"orders","kind":"object","type":"Order","relationName":"OrderToProviderProfile"},{"name":"user","kind":"object","type":"User","relationName":"ProviderProfileToUser"}],"dbName":"providerprofile"},"Review":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"customerId","kind":"scalar","type":"String"},{"name":"mealId","kind":"scalar","type":"String"},{"name":"parentId","kind":"scalar","type":"String"},{"name":"rating","kind":"scalar","type":"Int"},{"name":"status","kind":"enum","type":"ReviewStatus"},{"name":"comment","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"customer","kind":"object","type":"User","relationName":"ReviewToUser"},{"name":"meal","kind":"object","type":"Meal","relationName":"MealToReview"},{"name":"parent","kind":"object","type":"Review","relationName":"reviewsReply"},{"name":"replies","kind":"object","type":"Review","relationName":"reviewsReply"}],"dbName":"review"}},"enums":{},"types":{}}');
+config.runtimeDataModel = JSON.parse('{"models":{"User":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"email","kind":"scalar","type":"String"},{"name":"emailVerified","kind":"scalar","type":"Boolean"},{"name":"image","kind":"scalar","type":"String"},{"name":"bgimage","kind":"scalar","type":"String"},{"name":"phone","kind":"scalar","type":"String"},{"name":"role","kind":"enum","type":"Role"},{"name":"status","kind":"enum","type":"Status"},{"name":"isActive","kind":"scalar","type":"Boolean"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"accounts","kind":"object","type":"Account","relationName":"AccountToUser"},{"name":"category","kind":"object","type":"Category","relationName":"CategoryToUser"},{"name":"payments","kind":"object","type":"Payment","relationName":"PaymentToUser"},{"name":"orders","kind":"object","type":"Order","relationName":"OrderToUser"},{"name":"provider","kind":"object","type":"ProviderProfile","relationName":"ProviderProfileToUser"},{"name":"reviews","kind":"object","type":"Review","relationName":"ReviewToUser"},{"name":"sessions","kind":"object","type":"Session","relationName":"SessionToUser"}],"dbName":"user"},"Session":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"expiresAt","kind":"scalar","type":"DateTime"},{"name":"token","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"ipAddress","kind":"scalar","type":"String"},{"name":"userAgent","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"user","kind":"object","type":"User","relationName":"SessionToUser"}],"dbName":"session"},"Account":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"accountId","kind":"scalar","type":"String"},{"name":"providerId","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"accessToken","kind":"scalar","type":"String"},{"name":"refreshToken","kind":"scalar","type":"String"},{"name":"idToken","kind":"scalar","type":"String"},{"name":"accessTokenExpiresAt","kind":"scalar","type":"DateTime"},{"name":"refreshTokenExpiresAt","kind":"scalar","type":"DateTime"},{"name":"scope","kind":"scalar","type":"String"},{"name":"password","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"user","kind":"object","type":"User","relationName":"AccountToUser"}],"dbName":"account"},"Verification":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"identifier","kind":"scalar","type":"String"},{"name":"value","kind":"scalar","type":"String"},{"name":"expiresAt","kind":"scalar","type":"DateTime"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"}],"dbName":"verification"},"Category":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"adminId","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"image","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"user","kind":"object","type":"User","relationName":"CategoryToUser"},{"name":"meals","kind":"object","type":"Meal","relationName":"CategoryToMeal"}],"dbName":"categories"},"Meal":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"meals_name","kind":"scalar","type":"String"},{"name":"description","kind":"scalar","type":"String"},{"name":"image","kind":"scalar","type":"String"},{"name":"price","kind":"scalar","type":"Int"},{"name":"isAvailable","kind":"scalar","type":"Boolean"},{"name":"dietaryPreference","kind":"enum","type":"DietaryPreference"},{"name":"providerId","kind":"scalar","type":"String"},{"name":"category_name","kind":"scalar","type":"String"},{"name":"deliverycharge","kind":"scalar","type":"Int"},{"name":"cuisine","kind":"enum","type":"Cuisine"},{"name":"status","kind":"enum","type":"MealsStatus"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"category","kind":"object","type":"Category","relationName":"CategoryToMeal"},{"name":"provider","kind":"object","type":"ProviderProfile","relationName":"MealToProviderProfile"},{"name":"orderitem","kind":"object","type":"Orderitem","relationName":"MealToOrderitem"},{"name":"reviews","kind":"object","type":"Review","relationName":"MealToReview"},{"name":"payment","kind":"object","type":"Payment","relationName":"MealToPayment"}],"dbName":"meal"},"Order":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"customerId","kind":"scalar","type":"String"},{"name":"providerId","kind":"scalar","type":"String"},{"name":"first_name","kind":"scalar","type":"String"},{"name":"last_name","kind":"scalar","type":"String"},{"name":"status","kind":"enum","type":"OrderStatus"},{"name":"totalPrice","kind":"scalar","type":"Int"},{"name":"phone","kind":"scalar","type":"String"},{"name":"address","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"customer","kind":"object","type":"User","relationName":"OrderToUser"},{"name":"provider","kind":"object","type":"ProviderProfile","relationName":"OrderToProviderProfile"},{"name":"orderitem","kind":"object","type":"Orderitem","relationName":"OrderToOrderitem"},{"name":"payment","kind":"object","type":"Payment","relationName":"OrderToPayment"},{"name":"paymentStatus","kind":"enum","type":"PaymentStatus"}],"dbName":"order"},"Orderitem":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"orderId","kind":"scalar","type":"String"},{"name":"price","kind":"scalar","type":"Float"},{"name":"quantity","kind":"scalar","type":"Int"},{"name":"mealId","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"meal","kind":"object","type":"Meal","relationName":"MealToOrderitem"},{"name":"order","kind":"object","type":"Order","relationName":"OrderToOrderitem"}],"dbName":"orderitem"},"Payment":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"mealId","kind":"scalar","type":"String"},{"name":"stripeEventId","kind":"scalar","type":"String"},{"name":"transactionId","kind":"scalar","type":"String"},{"name":"paymentGatewayData","kind":"scalar","type":"Json"},{"name":"user","kind":"object","type":"User","relationName":"PaymentToUser"},{"name":"meal","kind":"object","type":"Meal","relationName":"MealToPayment"},{"name":"amount","kind":"scalar","type":"Float"},{"name":"status","kind":"enum","type":"PaymentStatus"},{"name":"orderId","kind":"scalar","type":"String"},{"name":"order","kind":"object","type":"Order","relationName":"OrderToPayment"},{"name":"createdAt","kind":"scalar","type":"DateTime"}],"dbName":null},"ProviderProfile":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"restaurantName","kind":"scalar","type":"String"},{"name":"address","kind":"scalar","type":"String"},{"name":"description","kind":"scalar","type":"String"},{"name":"image","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"meals","kind":"object","type":"Meal","relationName":"MealToProviderProfile"},{"name":"orders","kind":"object","type":"Order","relationName":"OrderToProviderProfile"},{"name":"user","kind":"object","type":"User","relationName":"ProviderProfileToUser"}],"dbName":"providerprofile"},"Review":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"customerId","kind":"scalar","type":"String"},{"name":"mealId","kind":"scalar","type":"String"},{"name":"parentId","kind":"scalar","type":"String"},{"name":"rating","kind":"scalar","type":"Int"},{"name":"status","kind":"enum","type":"ReviewStatus"},{"name":"comment","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"customer","kind":"object","type":"User","relationName":"ReviewToUser"},{"name":"meal","kind":"object","type":"Meal","relationName":"MealToReview"},{"name":"parent","kind":"object","type":"Review","relationName":"reviewsReply"},{"name":"replies","kind":"object","type":"Review","relationName":"reviewsReply"}],"dbName":"review"}},"enums":{},"types":{}}');
 config.parameterizationSchema = {
-  strings: JSON.parse('["where","orderBy","cursor","user","accounts","category","meals","customer","provider","meal","order","orderitem","_count","orders","parent","replies","reviews","sessions","User.findUnique","User.findUniqueOrThrow","User.findFirst","User.findFirstOrThrow","User.findMany","data","User.createOne","User.createMany","User.createManyAndReturn","User.updateOne","User.updateMany","User.updateManyAndReturn","create","update","User.upsertOne","User.deleteOne","User.deleteMany","having","_min","_max","User.groupBy","User.aggregate","Session.findUnique","Session.findUniqueOrThrow","Session.findFirst","Session.findFirstOrThrow","Session.findMany","Session.createOne","Session.createMany","Session.createManyAndReturn","Session.updateOne","Session.updateMany","Session.updateManyAndReturn","Session.upsertOne","Session.deleteOne","Session.deleteMany","Session.groupBy","Session.aggregate","Account.findUnique","Account.findUniqueOrThrow","Account.findFirst","Account.findFirstOrThrow","Account.findMany","Account.createOne","Account.createMany","Account.createManyAndReturn","Account.updateOne","Account.updateMany","Account.updateManyAndReturn","Account.upsertOne","Account.deleteOne","Account.deleteMany","Account.groupBy","Account.aggregate","Verification.findUnique","Verification.findUniqueOrThrow","Verification.findFirst","Verification.findFirstOrThrow","Verification.findMany","Verification.createOne","Verification.createMany","Verification.createManyAndReturn","Verification.updateOne","Verification.updateMany","Verification.updateManyAndReturn","Verification.upsertOne","Verification.deleteOne","Verification.deleteMany","Verification.groupBy","Verification.aggregate","Category.findUnique","Category.findUniqueOrThrow","Category.findFirst","Category.findFirstOrThrow","Category.findMany","Category.createOne","Category.createMany","Category.createManyAndReturn","Category.updateOne","Category.updateMany","Category.updateManyAndReturn","Category.upsertOne","Category.deleteOne","Category.deleteMany","Category.groupBy","Category.aggregate","Meal.findUnique","Meal.findUniqueOrThrow","Meal.findFirst","Meal.findFirstOrThrow","Meal.findMany","Meal.createOne","Meal.createMany","Meal.createManyAndReturn","Meal.updateOne","Meal.updateMany","Meal.updateManyAndReturn","Meal.upsertOne","Meal.deleteOne","Meal.deleteMany","_avg","_sum","Meal.groupBy","Meal.aggregate","Order.findUnique","Order.findUniqueOrThrow","Order.findFirst","Order.findFirstOrThrow","Order.findMany","Order.createOne","Order.createMany","Order.createManyAndReturn","Order.updateOne","Order.updateMany","Order.updateManyAndReturn","Order.upsertOne","Order.deleteOne","Order.deleteMany","Order.groupBy","Order.aggregate","Orderitem.findUnique","Orderitem.findUniqueOrThrow","Orderitem.findFirst","Orderitem.findFirstOrThrow","Orderitem.findMany","Orderitem.createOne","Orderitem.createMany","Orderitem.createManyAndReturn","Orderitem.updateOne","Orderitem.updateMany","Orderitem.updateManyAndReturn","Orderitem.upsertOne","Orderitem.deleteOne","Orderitem.deleteMany","Orderitem.groupBy","Orderitem.aggregate","ProviderProfile.findUnique","ProviderProfile.findUniqueOrThrow","ProviderProfile.findFirst","ProviderProfile.findFirstOrThrow","ProviderProfile.findMany","ProviderProfile.createOne","ProviderProfile.createMany","ProviderProfile.createManyAndReturn","ProviderProfile.updateOne","ProviderProfile.updateMany","ProviderProfile.updateManyAndReturn","ProviderProfile.upsertOne","ProviderProfile.deleteOne","ProviderProfile.deleteMany","ProviderProfile.groupBy","ProviderProfile.aggregate","Review.findUnique","Review.findUniqueOrThrow","Review.findFirst","Review.findFirstOrThrow","Review.findMany","Review.createOne","Review.createMany","Review.createManyAndReturn","Review.updateOne","Review.updateMany","Review.updateManyAndReturn","Review.upsertOne","Review.deleteOne","Review.deleteMany","Review.groupBy","Review.aggregate","AND","OR","NOT","id","customerId","mealId","parentId","rating","ReviewStatus","status","comment","createdAt","updatedAt","equals","in","notIn","lt","lte","gt","gte","not","contains","startsWith","endsWith","userId","restaurantName","address","description","image","every","some","none","orderId","price","quantity","providerId","first_name","last_name","OrderStatus","totalPrice","phone","meals_name","isAvailable","DietaryPreference","dietaryPreference","category_name","Cuisine","cuisine","MealsStatus","adminId","name","identifier","value","expiresAt","accountId","accessToken","refreshToken","idToken","accessTokenExpiresAt","refreshTokenExpiresAt","scope","password","token","ipAddress","userAgent","email","emailVerified","bgimage","Role","role","Status","isActive","is","isNot","connectOrCreate","upsert","createMany","set","disconnect","delete","connect","updateMany","deleteMany","increment","decrement","multiply","divide"]'),
-  graph: "ugVfoAEVBAAA2AIAIAUAANkCACAIAADaAgAgDQAArwIAIBAAANsCACARAADcAgAgugEAANQCADC7AQAANAAQvAEAANQCADC9AQEAAAABwwEAANcCgQIixQFAAK0CACHGAUAArQIAIdYBAQCsAgAh4gEBAKwCACHsAQEAqwIAIfsBAQAAAAH8ASAA1QIAIf0BAQCsAgAh_wEAANYC_wEigQIgANUCACEBAAAAAQAgEQMAALACACC6AQAA8AIAMLsBAAADABC8AQAA8AIAML0BAQCrAgAhxQFAAK0CACHGAUAArQIAIdIBAQCrAgAh3QEBAKsCACHwAQEAqwIAIfEBAQCsAgAh8gEBAKwCACHzAQEArAIAIfQBQADxAgAh9QFAAPECACH2AQEArAIAIfcBAQCsAgAhCAMAAOYDACDxAQAA8gIAIPIBAADyAgAg8wEAAPICACD0AQAA8gIAIPUBAADyAgAg9gEAAPICACD3AQAA8gIAIBEDAACwAgAgugEAAPACADC7AQAAAwAQvAEAAPACADC9AQEAAAABxQFAAK0CACHGAUAArQIAIdIBAQCrAgAh3QEBAKsCACHwAQEAqwIAIfEBAQCsAgAh8gEBAKwCACHzAQEArAIAIfQBQADxAgAh9QFAAPECACH2AQEArAIAIfcBAQCsAgAhAwAAAAMAIAEAAAQAMAIAAAUAIAsDAACwAgAgBgAArgIAILoBAADvAgAwuwEAAAcAELwBAADvAgAwvQEBAKsCACHFAUAArQIAIcYBQACtAgAh1gEBAKsCACHrAQEAqwIAIewBAQCrAgAhAgMAAOYDACAGAADkAwAgCwMAALACACAGAACuAgAgugEAAO8CADC7AQAABwAQvAEAAO8CADC9AQEAAAABxQFAAK0CACHGAUAArQIAIdYBAQCrAgAh6wEBAKsCACHsAQEAAAABAwAAAAcAIAEAAAgAMAIAAAkAIBQFAADuAgAgCAAA6AIAIAsAAOkCACAQAADbAgAgugEAAOoCADC7AQAACwAQvAEAAOoCADC9AQEAqwIAIcMBAADtAusBIsUBQACtAgAhxgFAAK0CACHVAQEArAIAIdYBAQCsAgAh2wECAN8CACHdAQEAqwIAIeMBAQCrAgAh5AEgANUCACHmAQAA6wLmASLnAQEAqwIAIekBAADsAukBIgYFAADtBAAgCAAA5gQAIAsAAOwEACAQAADnBAAg1QEAAPICACDWAQAA8gIAIBQFAADuAgAgCAAA6AIAIAsAAOkCACAQAADbAgAgugEAAOoCADC7AQAACwAQvAEAAOoCADC9AQEAAAABwwEAAO0C6wEixQFAAK0CACHGAUAArQIAIdUBAQCsAgAh1gEBAKwCACHbAQIA3wIAId0BAQCrAgAh4wEBAKsCACHkASAA1QIAIeYBAADrAuYBIucBAQCrAgAh6QEAAOwC6QEiAwAAAAsAIAEAAAwAMAIAAA0AIAMAAAALACABAAAMADACAAANACARBwAAsAIAIAgAAOgCACALAADpAgAgugEAAOYCADC7AQAAEAAQvAEAAOYCADC9AQEAqwIAIb4BAQCrAgAhwwEAAOcC4QEixQFAAK0CACHGAUAArQIAIdQBAQCrAgAh3QEBAKsCACHeAQEArAIAId8BAQCsAgAh4QECAN8CACHiAQEArAIAIQYHAADmAwAgCAAA5gQAIAsAAOwEACDeAQAA8gIAIN8BAADyAgAg4gEAAPICACARBwAAsAIAIAgAAOgCACALAADpAgAgugEAAOYCADC7AQAAEAAQvAEAAOYCADC9AQEAAAABvgEBAKsCACHDAQAA5wLhASLFAUAArQIAIcYBQACtAgAh1AEBAKsCACHdAQEAqwIAId4BAQCsAgAh3wEBAKwCACHhAQIA3wIAIeIBAQCsAgAhAwAAABAAIAEAABEAMAIAABIAIAwJAADhAgAgCgAA5QIAILoBAADjAgAwuwEAABQAELwBAADjAgAwvQEBAKsCACG_AQEAqwIAIcUBQACtAgAhxgFAAK0CACHaAQEAqwIAIdsBCADkAgAh3AECAN8CACECCQAA6QQAIAoAAOsEACAMCQAA4QIAIAoAAOUCACC6AQAA4wIAMLsBAAAUABC8AQAA4wIAML0BAQAAAAG_AQEAqwIAIcUBQACtAgAhxgFAAK0CACHaAQEAqwIAIdsBCADkAgAh3AECAN8CACEDAAAAFAAgAQAAFQAwAgAAFgAgAQAAABQAIAEAAAALACABAAAAEAAgAwAAABQAIAEAABUAMAIAABYAIBAHAACwAgAgCQAA4QIAIA4AAOICACAPAADbAgAgugEAAN4CADC7AQAAHAAQvAEAAN4CADC9AQEAqwIAIb4BAQCrAgAhvwEBAKsCACHAAQEArAIAIcEBAgDfAgAhwwEAAOACwwEixAEBAKsCACHFAUAArQIAIcYBQACtAgAhBQcAAOYDACAJAADpBAAgDgAA6gQAIA8AAOcEACDAAQAA8gIAIBAHAACwAgAgCQAA4QIAIA4AAOICACAPAADbAgAgugEAAN4CADC7AQAAHAAQvAEAAN4CADC9AQEAAAABvgEBAKsCACG_AQEAqwIAIcABAQCsAgAhwQECAN8CACHDAQAA4ALDASLEAQEAqwIAIcUBQACtAgAhxgFAAK0CACEDAAAAHAAgAQAAHQAwAgAAHgAgAQAAABwAIAMAAAAcACABAAAdADACAAAeACABAAAAHAAgAQAAABQAIAEAAAAcACABAAAACwAgAwAAABAAIAEAABEAMAIAABIAIA4DAACwAgAgBgAArgIAIA0AAK8CACC6AQAAqgIAMLsBAAAnABC8AQAAqgIAML0BAQCrAgAhxQFAAK0CACHGAUAArQIAIdIBAQCrAgAh0wEBAKsCACHUAQEAqwIAIdUBAQCsAgAh1gEBAKwCACEBAAAAJwAgAwAAABwAIAEAAB0AMAIAAB4AIAwDAACwAgAgugEAAN0CADC7AQAAKgAQvAEAAN0CADC9AQEAqwIAIcUBQACtAgAhxgFAAK0CACHSAQEAqwIAIe8BQACtAgAh-AEBAKsCACH5AQEArAIAIfoBAQCsAgAhAwMAAOYDACD5AQAA8gIAIPoBAADyAgAgDAMAALACACC6AQAA3QIAMLsBAAAqABC8AQAA3QIAML0BAQAAAAHFAUAArQIAIcYBQACtAgAh0gEBAKsCACHvAUAArQIAIfgBAQAAAAH5AQEArAIAIfoBAQCsAgAhAwAAACoAIAEAACsAMAIAACwAIAEAAAADACABAAAABwAgAQAAABAAIAEAAAAcACABAAAAKgAgAQAAAAEAIBUEAADYAgAgBQAA2QIAIAgAANoCACANAACvAgAgEAAA2wIAIBEAANwCACC6AQAA1AIAMLsBAAA0ABC8AQAA1AIAML0BAQCrAgAhwwEAANcCgQIixQFAAK0CACHGAUAArQIAIdYBAQCsAgAh4gEBAKwCACHsAQEAqwIAIfsBAQCrAgAh_AEgANUCACH9AQEArAIAIf8BAADWAv8BIoECIADVAgAhCQQAAOQEACAFAADlBAAgCAAA5gQAIA0AAOUDACAQAADnBAAgEQAA6AQAINYBAADyAgAg4gEAAPICACD9AQAA8gIAIAMAAAA0ACABAAA1ADACAAABACADAAAANAAgAQAANQAwAgAAAQAgAwAAADQAIAEAADUAMAIAAAEAIBIEAADeBAAgBQAA3wQAIAgAAOEEACANAADgBAAgEAAA4gQAIBEAAOMEACC9AQEAAAABwwEAAACBAgLFAUAAAAABxgFAAAAAAdYBAQAAAAHiAQEAAAAB7AEBAAAAAfsBAQAAAAH8ASAAAAAB_QEBAAAAAf8BAAAA_wECgQIgAAAAAQEXAAA5ACAMvQEBAAAAAcMBAAAAgQICxQFAAAAAAcYBQAAAAAHWAQEAAAAB4gEBAAAAAewBAQAAAAH7AQEAAAAB_AEgAAAAAf0BAQAAAAH_AQAAAP8BAoECIAAAAAEBFwAAOwAwARcAADsAMBIEAACdBAAgBQAAngQAIAgAAKAEACANAACfBAAgEAAAoQQAIBEAAKIEACC9AQEA-AIAIcMBAACcBIECIsUBQAD7AgAhxgFAAPsCACHWAQEA_AIAIeIBAQD8AgAh7AEBAPgCACH7AQEA-AIAIfwBIADBAwAh_QEBAPwCACH_AQAAmwT_ASKBAiAAwQMAIQIAAAABACAXAAA-ACAMvQEBAPgCACHDAQAAnASBAiLFAUAA-wIAIcYBQAD7AgAh1gEBAPwCACHiAQEA_AIAIewBAQD4AgAh-wEBAPgCACH8ASAAwQMAIf0BAQD8AgAh_wEAAJsE_wEigQIgAMEDACECAAAANAAgFwAAQAAgAgAAADQAIBcAAEAAIAMAAAABACAeAAA5ACAfAAA-ACABAAAAAQAgAQAAADQAIAYMAACYBAAgJAAAmgQAICUAAJkEACDWAQAA8gIAIOIBAADyAgAg_QEAAPICACAPugEAAM0CADC7AQAARwAQvAEAAM0CADC9AQEAmAIAIcMBAADPAoECIsUBQACcAgAhxgFAAJwCACHWAQEAmQIAIeIBAQCZAgAh7AEBAJgCACH7AQEAmAIAIfwBIAC5AgAh_QEBAJkCACH_AQAAzgL_ASKBAiAAuQIAIQMAAAA0ACABAABGADAjAABHACADAAAANAAgAQAANQAwAgAAAQAgAQAAACwAIAEAAAAsACADAAAAKgAgAQAAKwAwAgAALAAgAwAAACoAIAEAACsAMAIAACwAIAMAAAAqACABAAArADACAAAsACAJAwAAlwQAIL0BAQAAAAHFAUAAAAABxgFAAAAAAdIBAQAAAAHvAUAAAAAB-AEBAAAAAfkBAQAAAAH6AQEAAAABARcAAE8AIAi9AQEAAAABxQFAAAAAAcYBQAAAAAHSAQEAAAAB7wFAAAAAAfgBAQAAAAH5AQEAAAAB-gEBAAAAAQEXAABRADABFwAAUQAwCQMAAJYEACC9AQEA-AIAIcUBQAD7AgAhxgFAAPsCACHSAQEA-AIAIe8BQAD7AgAh-AEBAPgCACH5AQEA_AIAIfoBAQD8AgAhAgAAACwAIBcAAFQAIAi9AQEA-AIAIcUBQAD7AgAhxgFAAPsCACHSAQEA-AIAIe8BQAD7AgAh-AEBAPgCACH5AQEA_AIAIfoBAQD8AgAhAgAAACoAIBcAAFYAIAIAAAAqACAXAABWACADAAAALAAgHgAATwAgHwAAVAAgAQAAACwAIAEAAAAqACAFDAAAkwQAICQAAJUEACAlAACUBAAg-QEAAPICACD6AQAA8gIAIAu6AQAAzAIAMLsBAABdABC8AQAAzAIAML0BAQCYAgAhxQFAAJwCACHGAUAAnAIAIdIBAQCYAgAh7wFAAJwCACH4AQEAmAIAIfkBAQCZAgAh-gEBAJkCACEDAAAAKgAgAQAAXAAwIwAAXQAgAwAAACoAIAEAACsAMAIAACwAIAEAAAAFACABAAAABQAgAwAAAAMAIAEAAAQAMAIAAAUAIAMAAAADACABAAAEADACAAAFACADAAAAAwAgAQAABAAwAgAABQAgDgMAAJIEACC9AQEAAAABxQFAAAAAAcYBQAAAAAHSAQEAAAAB3QEBAAAAAfABAQAAAAHxAQEAAAAB8gEBAAAAAfMBAQAAAAH0AUAAAAAB9QFAAAAAAfYBAQAAAAH3AQEAAAABARcAAGUAIA29AQEAAAABxQFAAAAAAcYBQAAAAAHSAQEAAAAB3QEBAAAAAfABAQAAAAHxAQEAAAAB8gEBAAAAAfMBAQAAAAH0AUAAAAAB9QFAAAAAAfYBAQAAAAH3AQEAAAABARcAAGcAMAEXAABnADAOAwAAkQQAIL0BAQD4AgAhxQFAAPsCACHGAUAA-wIAIdIBAQD4AgAh3QEBAPgCACHwAQEA-AIAIfEBAQD8AgAh8gEBAPwCACHzAQEA_AIAIfQBQACQBAAh9QFAAJAEACH2AQEA_AIAIfcBAQD8AgAhAgAAAAUAIBcAAGoAIA29AQEA-AIAIcUBQAD7AgAhxgFAAPsCACHSAQEA-AIAId0BAQD4AgAh8AEBAPgCACHxAQEA_AIAIfIBAQD8AgAh8wEBAPwCACH0AUAAkAQAIfUBQACQBAAh9gEBAPwCACH3AQEA_AIAIQIAAAADACAXAABsACACAAAAAwAgFwAAbAAgAwAAAAUAIB4AAGUAIB8AAGoAIAEAAAAFACABAAAAAwAgCgwAAI0EACAkAACPBAAgJQAAjgQAIPEBAADyAgAg8gEAAPICACDzAQAA8gIAIPQBAADyAgAg9QEAAPICACD2AQAA8gIAIPcBAADyAgAgELoBAADIAgAwuwEAAHMAELwBAADIAgAwvQEBAJgCACHFAUAAnAIAIcYBQACcAgAh0gEBAJgCACHdAQEAmAIAIfABAQCYAgAh8QEBAJkCACHyAQEAmQIAIfMBAQCZAgAh9AFAAMkCACH1AUAAyQIAIfYBAQCZAgAh9wEBAJkCACEDAAAAAwAgAQAAcgAwIwAAcwAgAwAAAAMAIAEAAAQAMAIAAAUAIAm6AQAAxwIAMLsBAAB5ABC8AQAAxwIAML0BAQAAAAHFAUAArQIAIcYBQACtAgAh7QEBAKsCACHuAQEAqwIAIe8BQACtAgAhAQAAAHYAIAEAAAB2ACAJugEAAMcCADC7AQAAeQAQvAEAAMcCADC9AQEAqwIAIcUBQACtAgAhxgFAAK0CACHtAQEAqwIAIe4BAQCrAgAh7wFAAK0CACEAAwAAAHkAIAEAAHoAMAIAAHYAIAMAAAB5ACABAAB6ADACAAB2ACADAAAAeQAgAQAAegAwAgAAdgAgBr0BAQAAAAHFAUAAAAABxgFAAAAAAe0BAQAAAAHuAQEAAAAB7wFAAAAAAQEXAAB-ACAGvQEBAAAAAcUBQAAAAAHGAUAAAAAB7QEBAAAAAe4BAQAAAAHvAUAAAAABARcAAIABADABFwAAgAEAMAa9AQEA-AIAIcUBQAD7AgAhxgFAAPsCACHtAQEA-AIAIe4BAQD4AgAh7wFAAPsCACECAAAAdgAgFwAAgwEAIAa9AQEA-AIAIcUBQAD7AgAhxgFAAPsCACHtAQEA-AIAIe4BAQD4AgAh7wFAAPsCACECAAAAeQAgFwAAhQEAIAIAAAB5ACAXAACFAQAgAwAAAHYAIB4AAH4AIB8AAIMBACABAAAAdgAgAQAAAHkAIAMMAACKBAAgJAAAjAQAICUAAIsEACAJugEAAMYCADC7AQAAjAEAELwBAADGAgAwvQEBAJgCACHFAUAAnAIAIcYBQACcAgAh7QEBAJgCACHuAQEAmAIAIe8BQACcAgAhAwAAAHkAIAEAAIsBADAjAACMAQAgAwAAAHkAIAEAAHoAMAIAAHYAIAEAAAAJACABAAAACQAgAwAAAAcAIAEAAAgAMAIAAAkAIAMAAAAHACABAAAIADACAAAJACADAAAABwAgAQAACAAwAgAACQAgCAMAAIgEACAGAACJBAAgvQEBAAAAAcUBQAAAAAHGAUAAAAAB1gEBAAAAAesBAQAAAAHsAQEAAAABARcAAJQBACAGvQEBAAAAAcUBQAAAAAHGAUAAAAAB1gEBAAAAAesBAQAAAAHsAQEAAAABARcAAJYBADABFwAAlgEAMAgDAAD9AwAgBgAA_gMAIL0BAQD4AgAhxQFAAPsCACHGAUAA-wIAIdYBAQD4AgAh6wEBAPgCACHsAQEA-AIAIQIAAAAJACAXAACZAQAgBr0BAQD4AgAhxQFAAPsCACHGAUAA-wIAIdYBAQD4AgAh6wEBAPgCACHsAQEA-AIAIQIAAAAHACAXAACbAQAgAgAAAAcAIBcAAJsBACADAAAACQAgHgAAlAEAIB8AAJkBACABAAAACQAgAQAAAAcAIAMMAAD6AwAgJAAA_AMAICUAAPsDACAJugEAAMUCADC7AQAAogEAELwBAADFAgAwvQEBAJgCACHFAUAAnAIAIcYBQACcAgAh1gEBAJgCACHrAQEAmAIAIewBAQCYAgAhAwAAAAcAIAEAAKEBADAjAACiAQAgAwAAAAcAIAEAAAgAMAIAAAkAIAEAAAANACABAAAADQAgAwAAAAsAIAEAAAwAMAIAAA0AIAMAAAALACABAAAMADACAAANACADAAAACwAgAQAADAAwAgAADQAgEQUAAN4DACAIAAD5AwAgCwAA3wMAIBAAAOADACC9AQEAAAABwwEAAADrAQLFAUAAAAABxgFAAAAAAdUBAQAAAAHWAQEAAAAB2wECAAAAAd0BAQAAAAHjAQEAAAAB5AEgAAAAAeYBAAAA5gEC5wEBAAAAAekBAAAA6QECARcAAKoBACANvQEBAAAAAcMBAAAA6wECxQFAAAAAAcYBQAAAAAHVAQEAAAAB1gEBAAAAAdsBAgAAAAHdAQEAAAAB4wEBAAAAAeQBIAAAAAHmAQAAAOYBAucBAQAAAAHpAQAAAOkBAgEXAACsAQAwARcAAKwBADARBQAAxgMAIAgAAPgDACALAADHAwAgEAAAyAMAIL0BAQD4AgAhwwEAAMQD6wEixQFAAPsCACHGAUAA-wIAIdUBAQD8AgAh1gEBAPwCACHbAQIA-QIAId0BAQD4AgAh4wEBAPgCACHkASAAwQMAIeYBAADCA-YBIucBAQD4AgAh6QEAAMMD6QEiAgAAAA0AIBcAAK8BACANvQEBAPgCACHDAQAAxAPrASLFAUAA-wIAIcYBQAD7AgAh1QEBAPwCACHWAQEA_AIAIdsBAgD5AgAh3QEBAPgCACHjAQEA-AIAIeQBIADBAwAh5gEAAMID5gEi5wEBAPgCACHpAQAAwwPpASICAAAACwAgFwAAsQEAIAIAAAALACAXAACxAQAgAwAAAA0AIB4AAKoBACAfAACvAQAgAQAAAA0AIAEAAAALACAHDAAA8wMAICQAAPYDACAlAAD1AwAgdgAA9AMAIHcAAPcDACDVAQAA8gIAINYBAADyAgAgELoBAAC4AgAwuwEAALgBABC8AQAAuAIAML0BAQCYAgAhwwEAALwC6wEixQFAAJwCACHGAUAAnAIAIdUBAQCZAgAh1gEBAJkCACHbAQIAmgIAId0BAQCYAgAh4wEBAJgCACHkASAAuQIAIeYBAAC6AuYBIucBAQCYAgAh6QEAALsC6QEiAwAAAAsAIAEAALcBADAjAAC4AQAgAwAAAAsAIAEAAAwAMAIAAA0AIAEAAAASACABAAAAEgAgAwAAABAAIAEAABEAMAIAABIAIAMAAAAQACABAAARADACAAASACADAAAAEAAgAQAAEQAwAgAAEgAgDgcAALUDACAIAADyAwAgCwAAtgMAIL0BAQAAAAG-AQEAAAABwwEAAADhAQLFAUAAAAABxgFAAAAAAdQBAQAAAAHdAQEAAAAB3gEBAAAAAd8BAQAAAAHhAQIAAAAB4gEBAAAAAQEXAADAAQAgC70BAQAAAAG-AQEAAAABwwEAAADhAQLFAUAAAAABxgFAAAAAAdQBAQAAAAHdAQEAAAAB3gEBAAAAAd8BAQAAAAHhAQIAAAAB4gEBAAAAAQEXAADCAQAwARcAAMIBADAOBwAAowMAIAgAAPEDACALAACkAwAgvQEBAPgCACG-AQEA-AIAIcMBAAChA-EBIsUBQAD7AgAhxgFAAPsCACHUAQEA-AIAId0BAQD4AgAh3gEBAPwCACHfAQEA_AIAIeEBAgD5AgAh4gEBAPwCACECAAAAEgAgFwAAxQEAIAu9AQEA-AIAIb4BAQD4AgAhwwEAAKED4QEixQFAAPsCACHGAUAA-wIAIdQBAQD4AgAh3QEBAPgCACHeAQEA_AIAId8BAQD8AgAh4QECAPkCACHiAQEA_AIAIQIAAAAQACAXAADHAQAgAgAAABAAIBcAAMcBACADAAAAEgAgHgAAwAEAIB8AAMUBACABAAAAEgAgAQAAABAAIAgMAADsAwAgJAAA7wMAICUAAO4DACB2AADtAwAgdwAA8AMAIN4BAADyAgAg3wEAAPICACDiAQAA8gIAIA66AQAAtAIAMLsBAADOAQAQvAEAALQCADC9AQEAmAIAIb4BAQCYAgAhwwEAALUC4QEixQFAAJwCACHGAUAAnAIAIdQBAQCYAgAh3QEBAJgCACHeAQEAmQIAId8BAQCZAgAh4QECAJoCACHiAQEAmQIAIQMAAAAQACABAADNAQAwIwAAzgEAIAMAAAAQACABAAARADACAAASACABAAAAFgAgAQAAABYAIAMAAAAUACABAAAVADACAAAWACADAAAAFAAgAQAAFQAwAgAAFgAgAwAAABQAIAEAABUAMAIAABYAIAkJAACzAwAgCgAA3AMAIL0BAQAAAAG_AQEAAAABxQFAAAAAAcYBQAAAAAHaAQEAAAAB2wEIAAAAAdwBAgAAAAEBFwAA1gEAIAe9AQEAAAABvwEBAAAAAcUBQAAAAAHGAUAAAAAB2gEBAAAAAdsBCAAAAAHcAQIAAAABARcAANgBADABFwAA2AEAMAkJAACxAwAgCgAA2gMAIL0BAQD4AgAhvwEBAPgCACHFAUAA-wIAIcYBQAD7AgAh2gEBAPgCACHbAQgArwMAIdwBAgD5AgAhAgAAABYAIBcAANsBACAHvQEBAPgCACG_AQEA-AIAIcUBQAD7AgAhxgFAAPsCACHaAQEA-AIAIdsBCACvAwAh3AECAPkCACECAAAAFAAgFwAA3QEAIAIAAAAUACAXAADdAQAgAwAAABYAIB4AANYBACAfAADbAQAgAQAAABYAIAEAAAAUACAFDAAA5wMAICQAAOoDACAlAADpAwAgdgAA6AMAIHcAAOsDACAKugEAALECADC7AQAA5AEAELwBAACxAgAwvQEBAJgCACG_AQEAmAIAIcUBQACcAgAhxgFAAJwCACHaAQEAmAIAIdsBCACyAgAh3AECAJoCACEDAAAAFAAgAQAA4wEAMCMAAOQBACADAAAAFAAgAQAAFQAwAgAAFgAgDgMAALACACAGAACuAgAgDQAArwIAILoBAACqAgAwuwEAACcAELwBAACqAgAwvQEBAAAAAcUBQACtAgAhxgFAAK0CACHSAQEAAAAB0wEBAKsCACHUAQEAqwIAIdUBAQCsAgAh1gEBAKwCACEBAAAA5wEAIAEAAADnAQAgBQMAAOYDACAGAADkAwAgDQAA5QMAINUBAADyAgAg1gEAAPICACADAAAAJwAgAQAA6gEAMAIAAOcBACADAAAAJwAgAQAA6gEAMAIAAOcBACADAAAAJwAgAQAA6gEAMAIAAOcBACALAwAA4wMAIAYAAOEDACANAADiAwAgvQEBAAAAAcUBQAAAAAHGAUAAAAAB0gEBAAAAAdMBAQAAAAHUAQEAAAAB1QEBAAAAAdYBAQAAAAEBFwAA7gEAIAi9AQEAAAABxQFAAAAAAcYBQAAAAAHSAQEAAAAB0wEBAAAAAdQBAQAAAAHVAQEAAAAB1gEBAAAAAQEXAADwAQAwARcAAPABADALAwAAlgMAIAYAAJQDACANAACVAwAgvQEBAPgCACHFAUAA-wIAIcYBQAD7AgAh0gEBAPgCACHTAQEA-AIAIdQBAQD4AgAh1QEBAPwCACHWAQEA_AIAIQIAAADnAQAgFwAA8wEAIAi9AQEA-AIAIcUBQAD7AgAhxgFAAPsCACHSAQEA-AIAIdMBAQD4AgAh1AEBAPgCACHVAQEA_AIAIdYBAQD8AgAhAgAAACcAIBcAAPUBACACAAAAJwAgFwAA9QEAIAMAAADnAQAgHgAA7gEAIB8AAPMBACABAAAA5wEAIAEAAAAnACAFDAAAkQMAICQAAJMDACAlAACSAwAg1QEAAPICACDWAQAA8gIAIAu6AQAAqQIAMLsBAAD8AQAQvAEAAKkCADC9AQEAmAIAIcUBQACcAgAhxgFAAJwCACHSAQEAmAIAIdMBAQCYAgAh1AEBAJgCACHVAQEAmQIAIdYBAQCZAgAhAwAAACcAIAEAAPsBADAjAAD8AQAgAwAAACcAIAEAAOoBADACAADnAQAgAQAAAB4AIAEAAAAeACADAAAAHAAgAQAAHQAwAgAAHgAgAwAAABwAIAEAAB0AMAIAAB4AIAMAAAAcACABAAAdADACAAAeACANBwAAjQMAIAkAAI4DACAOAACQAwAgDwAAjwMAIL0BAQAAAAG-AQEAAAABvwEBAAAAAcABAQAAAAHBAQIAAAABwwEAAADDAQLEAQEAAAABxQFAAAAAAcYBQAAAAAEBFwAAhAIAIAm9AQEAAAABvgEBAAAAAb8BAQAAAAHAAQEAAAABwQECAAAAAcMBAAAAwwECxAEBAAAAAcUBQAAAAAHGAUAAAAABARcAAIYCADABFwAAhgIAMAEAAAAcACANBwAA_QIAIAkAAP4CACAOAAD_AgAgDwAAgAMAIL0BAQD4AgAhvgEBAPgCACG_AQEA-AIAIcABAQD8AgAhwQECAPkCACHDAQAA-gLDASLEAQEA-AIAIcUBQAD7AgAhxgFAAPsCACECAAAAHgAgFwAAigIAIAm9AQEA-AIAIb4BAQD4AgAhvwEBAPgCACHAAQEA_AIAIcEBAgD5AgAhwwEAAPoCwwEixAEBAPgCACHFAUAA-wIAIcYBQAD7AgAhAgAAABwAIBcAAIwCACACAAAAHAAgFwAAjAIAIAEAAAAcACADAAAAHgAgHgAAhAIAIB8AAIoCACABAAAAHgAgAQAAABwAIAYMAADzAgAgJAAA9gIAICUAAPUCACB2AAD0AgAgdwAA9wIAIMABAADyAgAgDLoBAACXAgAwuwEAAJQCABC8AQAAlwIAML0BAQCYAgAhvgEBAJgCACG_AQEAmAIAIcABAQCZAgAhwQECAJoCACHDAQAAmwLDASLEAQEAmAIAIcUBQACcAgAhxgFAAJwCACEDAAAAHAAgAQAAkwIAMCMAAJQCACADAAAAHAAgAQAAHQAwAgAAHgAgDLoBAACXAgAwuwEAAJQCABC8AQAAlwIAML0BAQCYAgAhvgEBAJgCACG_AQEAmAIAIcABAQCZAgAhwQECAJoCACHDAQAAmwLDASLEAQEAmAIAIcUBQACcAgAhxgFAAJwCACEODAAAngIAICQAAKgCACAlAACoAgAgxwEBAAAAAcgBAQAAAATJAQEAAAAEygEBAAAAAcsBAQAAAAHMAQEAAAABzQEBAAAAAc4BAQCnAgAhzwEBAAAAAdABAQAAAAHRAQEAAAABDgwAAKUCACAkAACmAgAgJQAApgIAIMcBAQAAAAHIAQEAAAAFyQEBAAAABcoBAQAAAAHLAQEAAAABzAEBAAAAAc0BAQAAAAHOAQEApAIAIc8BAQAAAAHQAQEAAAAB0QEBAAAAAQ0MAACeAgAgJAAAngIAICUAAJ4CACB2AACjAgAgdwAAngIAIMcBAgAAAAHIAQIAAAAEyQECAAAABMoBAgAAAAHLAQIAAAABzAECAAAAAc0BAgAAAAHOAQIAogIAIQcMAACeAgAgJAAAoQIAICUAAKECACDHAQAAAMMBAsgBAAAAwwEIyQEAAADDAQjOAQAAoALDASILDAAAngIAICQAAJ8CACAlAACfAgAgxwFAAAAAAcgBQAAAAATJAUAAAAAEygFAAAAAAcsBQAAAAAHMAUAAAAABzQFAAAAAAc4BQACdAgAhCwwAAJ4CACAkAACfAgAgJQAAnwIAIMcBQAAAAAHIAUAAAAAEyQFAAAAABMoBQAAAAAHLAUAAAAABzAFAAAAAAc0BQAAAAAHOAUAAnQIAIQjHAQIAAAAByAECAAAABMkBAgAAAATKAQIAAAABywECAAAAAcwBAgAAAAHNAQIAAAABzgECAJ4CACEIxwFAAAAAAcgBQAAAAATJAUAAAAAEygFAAAAAAcsBQAAAAAHMAUAAAAABzQFAAAAAAc4BQACfAgAhBwwAAJ4CACAkAAChAgAgJQAAoQIAIMcBAAAAwwECyAEAAADDAQjJAQAAAMMBCM4BAACgAsMBIgTHAQAAAMMBAsgBAAAAwwEIyQEAAADDAQjOAQAAoQLDASINDAAAngIAICQAAJ4CACAlAACeAgAgdgAAowIAIHcAAJ4CACDHAQIAAAAByAECAAAABMkBAgAAAATKAQIAAAABywECAAAAAcwBAgAAAAHNAQIAAAABzgECAKICACEIxwEIAAAAAcgBCAAAAATJAQgAAAAEygEIAAAAAcsBCAAAAAHMAQgAAAABzQEIAAAAAc4BCACjAgAhDgwAAKUCACAkAACmAgAgJQAApgIAIMcBAQAAAAHIAQEAAAAFyQEBAAAABcoBAQAAAAHLAQEAAAABzAEBAAAAAc0BAQAAAAHOAQEApAIAIc8BAQAAAAHQAQEAAAAB0QEBAAAAAQjHAQIAAAAByAECAAAABckBAgAAAAXKAQIAAAABywECAAAAAcwBAgAAAAHNAQIAAAABzgECAKUCACELxwEBAAAAAcgBAQAAAAXJAQEAAAAFygEBAAAAAcsBAQAAAAHMAQEAAAABzQEBAAAAAc4BAQCmAgAhzwEBAAAAAdABAQAAAAHRAQEAAAABDgwAAJ4CACAkAACoAgAgJQAAqAIAIMcBAQAAAAHIAQEAAAAEyQEBAAAABMoBAQAAAAHLAQEAAAABzAEBAAAAAc0BAQAAAAHOAQEApwIAIc8BAQAAAAHQAQEAAAAB0QEBAAAAAQvHAQEAAAAByAEBAAAABMkBAQAAAATKAQEAAAABywEBAAAAAcwBAQAAAAHNAQEAAAABzgEBAKgCACHPAQEAAAAB0AEBAAAAAdEBAQAAAAELugEAAKkCADC7AQAA_AEAELwBAACpAgAwvQEBAJgCACHFAUAAnAIAIcYBQACcAgAh0gEBAJgCACHTAQEAmAIAIdQBAQCYAgAh1QEBAJkCACHWAQEAmQIAIQ4DAACwAgAgBgAArgIAIA0AAK8CACC6AQAAqgIAMLsBAAAnABC8AQAAqgIAML0BAQCrAgAhxQFAAK0CACHGAUAArQIAIdIBAQCrAgAh0wEBAKsCACHUAQEAqwIAIdUBAQCsAgAh1gEBAKwCACELxwEBAAAAAcgBAQAAAATJAQEAAAAEygEBAAAAAcsBAQAAAAHMAQEAAAABzQEBAAAAAc4BAQCoAgAhzwEBAAAAAdABAQAAAAHRAQEAAAABC8cBAQAAAAHIAQEAAAAFyQEBAAAABcoBAQAAAAHLAQEAAAABzAEBAAAAAc0BAQAAAAHOAQEApgIAIc8BAQAAAAHQAQEAAAAB0QEBAAAAAQjHAUAAAAAByAFAAAAABMkBQAAAAATKAUAAAAABywFAAAAAAcwBQAAAAAHNAUAAAAABzgFAAJ8CACED1wEAAAsAINgBAAALACDZAQAACwAgA9cBAAAQACDYAQAAEAAg2QEAABAAIBcEAADYAgAgBQAA2QIAIAgAANoCACANAACvAgAgEAAA2wIAIBEAANwCACC6AQAA1AIAMLsBAAA0ABC8AQAA1AIAML0BAQCrAgAhwwEAANcCgQIixQFAAK0CACHGAUAArQIAIdYBAQCsAgAh4gEBAKwCACHsAQEAqwIAIfsBAQCrAgAh_AEgANUCACH9AQEArAIAIf8BAADWAv8BIoECIADVAgAhggIAADQAIIMCAAA0ACAKugEAALECADC7AQAA5AEAELwBAACxAgAwvQEBAJgCACG_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-QEBAJkCACH6AQEAmQIAIQ-6AQAAzQIAMLsBAABHABC8AQAAzQIAML0BAQCYAgAhwwEAAM8CgQIixQFAAJwCACHGAUAAnAIAIdYBAQCZAgAh4gEBAJkCACHsAQEAmAIAIfsBAQCYAgAh_AEgALkCACH9AQEAmQIAIf8BAADOAv8BIoECIAC5AgAhBwwAAJ4CACAkAADTAgAgJQAA0wIAIMcBAAAA_wECyAEAAAD_AQjJAQAAAP8BCM4BAADSAv8BIgcMAACeAgAgJAAA0QIAICUAANECACDHAQAAAIECAsgBAAAAgQIIyQEAAACBAgjOAQAA0AKBAiIHDAAAngIAICQAANECACAlAADRAgAgxwEAAACBAgLIAQAAAIECCMkBAAAAgQIIzgEAANACgQIiBMcBAAAAgQICyAEAAACBAgjJAQAAAIECCM4BAADRAoECIgcMAACeAgAgJAAA0wIAICUAANMCACDHAQAAAP8BAsgBAAAA_wEIyQEAAAD_AQjOAQAA0gL_ASIExwEAAAD_AQLIAQAAAP8BCMkBAAAA_wEIzgEAANMC_wEiFQQAANgCACAFAADZAgAgCAAA2gIAIA0AAK8CACAQAADbAgAgEQAA3AIAILoBAADUAgAwuwEAADQAELwBAADUAgAwvQEBAKsCACHDAQAA1wKBAiLFAUAArQIAIcYBQACtAgAh1gEBAKwCACHiAQEArAIAIewBAQCrAgAh-wEBAKsCACH8ASAA1QIAIf0BAQCsAgAh_wEAANYC_wEigQIgANUCACECxwEgAAAAAc4BIADEAgAhBMcBAAAA_wECyAEAAAD_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_AQEAqwIAIcABAQCsAgAhwQECAN8CACHDAQAA4ALDASLEAQEAqwIAIcUBQACtAgAhxgFAAK0CACEMugEAAIgDADC7AQAAiQMAELwBAACIAwAwvQEBAKsCACG-AQEAqwIAIb8BAQCrAgAhwAEBAKwCACHBAQIA3wIAIcMBAADgAsMBIsQBAQCrAgAhxQFAAK0CACHGAUAArQIAIQi9AQEA-AIAIb4BAQD4AgAhvwEBAPgCACHBAQIA-QIAIcMBAAD6AsMBIsQBAQD4AgAhxQFAAPsCACHGAUAA-wIAIQsHAAD9AgAgCQAA_gIAIA8AAIADACC9AQEA-AIAIb4BAQD4AgAhvwEBAPgCACHBAQIA-QIAIcMBAAD6AsMBIsQBAQD4AgAhxQFAAPsCACHGAUAA-wIAIQsHAACNAwAgCQAAjgMAIA8AAI8DACC9AQEAAAABvgEBAAAAAb8BAQAAAAHBAQIAAAABwwEAAADDAQLEAQEAAAABxQFAAAAAAcYBQAAAAAEDHgAArwUAIIQCAACwBQAgigIAAAEAIAMeAACtBQAghAIAAK4FACCKAgAADQAgBB4AAIEDADCEAgAAggMAMIYCAACEAwAgigIAAIUDADADHgAAqwUAIIQCAACsBQAgigIAAB4AIAAAAAseAAC3AwAwHwAAvAMAMIQCAAC4AwAwhQIAALkDADCGAgAAugMAIIcCAAC7AwAwiAIAALsDADCJAgAAuwMAMIoCAAC7AwAwiwIAAL0DADCMAgAAvgMAMAseAACXAwAwHwAAnAMAMIQCAACYAwAwhQIAAJkDADCGAgAAmgMAIIcCAACbAwAwiAIAAJsDADCJAgAAmwMAMIoCAACbAwAwiwIAAJ0DADCMAgAAngMAMAUeAACNBQAgHwAAqQUAIIQCAACOBQAghQIAAKgFACCKAgAAAQAgDAcAALUDACALAAC2AwAgvQEBAAAAAb4BAQAAAAHDAQAAAOEBAsUBQAAAAAHGAUAAAAAB1AEBAAAAAd4BAQAAAAHfAQEAAAAB4QECAAAAAeIBAQAAAAECAAAAEgAgHgAAtAMAIAMAAAASACAeAAC0AwAgHwAAogMAIAEXAACnBQAwEQcAALACACAIAADoAgAgCwAA6QIAILoBAADmAgAwuwEAABAAELwBAADmAgAwvQEBAAAAAb4BAQCrAgAhwwEAAOcC4QEixQFAAK0CACHGAUAArQIAIdQBAQCrAgAh3QEBAKsCACHeAQEArAIAId8BAQCsAgAh4QECAN8CACHiAQEArAIAIQIAAAASACAXAACiAwAgAgAAAJ8DACAXAACgAwAgDroBAACeAwAwuwEAAJ8DABC8AQAAngMAML0BAQCrAgAhvgEBAKsCACHDAQAA5wLhASLFAUAArQIAIcYBQACtAgAh1AEBAKsCACHdAQEAqwIAId4BAQCsAgAh3wEBAKwCACHhAQIA3wIAIeIBAQCsAgAhDroBAACeAwAwuwEAAJ8DABC8AQAAngMAML0BAQCrAgAhvgEBAKsCACHDAQAA5wLhASLFAUAArQIAIcYBQACtAgAh1AEBAKsCACHdAQEAqwIAId4BAQCsAgAh3wEBAKwCACHhAQIA3wIAIeIBAQCsAgAhCr0BAQD4AgAhvgEBAPgCACHDAQAAoQPhASLFAUAA-wIAIcYBQAD7AgAh1AEBAPgCACHeAQEA_AIAId8BAQD8AgAh4QECAPkCACHiAQEA_AIAIQGHAgAAAOEBAgwHAACjAwAgCwAApAMAIL0BAQD4AgAhvgEBAPgCACHDAQAAoQPhASLFAUAA-wIAIcYBQAD7AgAh1AEBAPgCACHeAQEA_AIAId8BAQD8AgAh4QECAPkCACHiAQEA_AIAIQUeAACcBQAgHwAApQUAIIQCAACdBQAghQIAAKQFACCKAgAAAQAgCx4AAKUDADAfAACqAwAwhAIAAKYDADCFAgAApwMAMIYCAACoAwAghwIAAKkDADCIAgAAqQMAMIkCAACpAwAwigIAAKkDADCLAgAAqwMAMIwCAACsAwAwBwkAALMDACC9AQEAAAABvwEBAAAAAcUBQAAAAAHGAUAAAAAB2wEIAAAAAdwBAgAAAAECAAAAFgAgHgAAsgMAIAMAAAAWACAeAACyAwAgHwAAsAMAIAEXAACjBQAwDAkAAOECACAKAADlAgAgugEAAOMCADC7AQAAFAAQvAEAAOMCADC9AQEAAAABvwEBAKsCACHFAUAArQIAIcYBQACtAgAh2gEBAKsCACHbAQgA5AIAIdwBAgDfAgAhAgAAABYAIBcAALADACACAAAArQMAIBcAAK4DACAKugEAAKwDADC7AQAArQMAELwBAACsAwAwvQEBAKsCACG_AQEAqwIAIcUBQACtAgAhxgFAAK0CACHaAQEAqwIAIdsBCADkAgAh3AECAN8CACEKugEAAKwDADC7AQAArQMAELwBAACsAwAwvQEBAKsCACG_AQEAqwIAIcUBQACtAgAhxgFAAK0CACHaAQEAqwIAIdsBCADkAgAh3AECAN8CACEGvQEBAPgCACG_AQEA-AIAIcUBQAD7AgAhxgFAAPsCACHbAQgArwMAIdwBAgD5AgAhBYcCCAAAAAGNAggAAAABjgIIAAAAAY8CCAAAAAGQAggAAAABBwkAALEDACC9AQEA-AIAIb8BAQD4AgAhxQFAAPsCACHGAUAA-wIAIdsBCACvAwAh3AECAPkCACEFHgAAngUAIB8AAKEFACCEAgAAnwUAIIUCAACgBQAgigIAAA0AIAcJAACzAwAgvQEBAAAAAb8BAQAAAAHFAUAAAAABxgFAAAAAAdsBCAAAAAHcAQIAAAABAx4AAJ4FACCEAgAAnwUAIIoCAAANACAMBwAAtQMAIAsAALYDACC9AQEAAAABvgEBAAAAAcMBAAAA4QECxQFAAAAAAcYBQAAAAAHUAQEAAAAB3gEBAAAAAd8BAQAAAAHhAQIAAAAB4gEBAAAAAQMeAACcBQAghAIAAJ0FACCKAgAAAQAgBB4AAKUDADCEAgAApgMAMIYCAACoAwAgigIAAKkDADAPBQAA3gMAIAsAAN8DACAQAADgAwAgvQEBAAAAAcMBAAAA6wECxQFAAAAAAcYBQAAAAAHVAQEAAAAB1gEBAAAAAdsBAgAAAAHjAQEAAAAB5AEgAAAAAeYBAAAA5gEC5wEBAAAAAekBAAAA6QECAgAAAA0AIB4AAN0DACADAAAADQAgHgAA3QMAIB8AAMUDACABFwAAmwUAMBQFAADuAgAgCAAA6AIAIAsAAOkCACAQAADbAgAgugEAAOoCADC7AQAACwAQvAEAAOoCADC9AQEAAAABwwEAAO0C6wEixQFAAK0CACHGAUAArQIAIdUBAQCsAgAh1gEBAKwCACHbAQIA3wIAId0BAQCrAgAh4wEBAKsCACHkASAA1QIAIeYBAADrAuYBIucBAQCrAgAh6QEAAOwC6QEiAgAAAA0AIBcAAMUDACACAAAAvwMAIBcAAMADACAQugEAAL4DADC7AQAAvwMAELwBAAC-AwAwvQEBAKsCACHDAQAA7QLrASLFAUAArQIAIcYBQACtAgAh1QEBAKwCACHWAQEArAIAIdsBAgDfAgAh3QEBAKsCACHjAQEAqwIAIeQBIADVAgAh5gEAAOsC5gEi5wEBAKsCACHpAQAA7ALpASIQugEAAL4DADC7AQAAvwMAELwBAAC-AwAwvQEBAKsCACHDAQAA7QLrASLFAUAArQIAIcYBQACtAgAh1QEBAKwCACHWAQEArAIAIdsBAgDfAgAh3QEBAKsCACHjAQEAqwIAIeQBIADVAgAh5gEAAOsC5gEi5wEBAKsCACHpAQAA7ALpASIMvQEBAPgCACHDAQAAxAPrASLFAUAA-wIAIcYBQAD7AgAh1QEBAPwCACHWAQEA_AIAIdsBAgD5AgAh4wEBAPgCACHkASAAwQMAIeYBAADCA-YBIucBAQD4AgAh6QEAAMMD6QEiAYcCIAAAAAEBhwIAAADmAQIBhwIAAADpAQIBhwIAAADrAQIPBQAAxgMAIAsAAMcDACAQAADIAwAgvQEBAPgCACHDAQAAxAPrASLFAUAA-wIAIcYBQAD7AgAh1QEBAPwCACHWAQEA_AIAIdsBAgD5AgAh4wEBAPgCACHkASAAwQMAIeYBAADCA-YBIucBAQD4AgAh6QEAAMMD6QEiBR4AAI8FACAfAACZBQAghAIAAJAFACCFAgAAmAUAIIoCAAAJACALHgAA0gMAMB8AANYDADCEAgAA0wMAMIUCAADUAwAwhgIAANUDACCHAgAAqQMAMIgCAACpAwAwiQIAAKkDADCKAgAAqQMAMIsCAADXAwAwjAIAAKwDADALHgAAyQMAMB8AAM0DADCEAgAAygMAMIUCAADLAwAwhgIAAMwDACCHAgAAhQMAMIgCAACFAwAwiQIAAIUDADCKAgAAhQMAMIsCAADOAwAwjAIAAIgDADALBwAAjQMAIA4AAJADACAPAACPAwAgvQEBAAAAAb4BAQAAAAHAAQEAAAABwQECAAAAAcMBAAAAwwECxAEBAAAAAcUBQAAAAAHGAUAAAAABAgAAAB4AIB4AANEDACADAAAAHgAgHgAA0QMAIB8AANADACABFwAAlwUAMAIAAAAeACAXAADQAwAgAgAAAIkDACAXAADPAwAgCL0BAQD4AgAhvgEBAPgCACHAAQEA_AIAIcEBAgD5AgAhwwEAAPoCwwEixAEBAPgCACHFAUAA-wIAIcYBQAD7AgAhCwcAAP0CACAOAAD_AgAgDwAAgAMAIL0BAQD4AgAhvgEBAPgCACHAAQEA_AIAIcEBAgD5AgAhwwEAAPoCwwEixAEBAPgCACHFAUAA-wIAIcYBQAD7AgAhCwcAAI0DACAOAACQAwAgDwAAjwMAIL0BAQAAAAG-AQEAAAABwAEBAAAAAcEBAgAAAAHDAQAAAMMBAsQBAQAAAAHFAUAAAAABxgFAAAAAAQcKAADcAwAgvQEBAAAAAcUBQAAAAAHGAUAAAAAB2gEBAAAAAdsBCAAAAAHcAQIAAAABAgAAABYAIB4AANsDACADAAAAFgAgHgAA2wMAIB8AANkDACABFwAAlgUAMAIAAAAWACAXAADZAwAgAgAAAK0DACAXAADYAwAgBr0BAQD4AgAhxQFAAPsCACHGAUAA-wIAIdoBAQD4AgAh2wEIAK8DACHcAQIA-QIAIQcKAADaAwAgvQEBAPgCACHFAUAA-wIAIcYBQAD7AgAh2gEBAPgCACHbAQgArwMAIdwBAgD5AgAhBR4AAJEFACAfAACUBQAghAIAAJIFACCFAgAAkwUAIIoCAAASACAHCgAA3AMAIL0BAQAAAAHFAUAAAAABxgFAAAAAAdoBAQAAAAHbAQgAAAAB3AECAAAAAQMeAACRBQAghAIAAJIFACCKAgAAEgAgDwUAAN4DACALAADfAwAgEAAA4AMAIL0BAQAAAAHDAQAAAOsBAsUBQAAAAAHGAUAAAAAB1QEBAAAAAdYBAQAAAAHbAQIAAAAB4wEBAAAAAeQBIAAAAAHmAQAAAOYBAucBAQAAAAHpAQAAAOkBAgMeAACPBQAghAIAAJAFACCKAgAACQAgBB4AANIDADCEAgAA0wMAMIYCAADVAwAgigIAAKkDADAEHgAAyQMAMIQCAADKAwAwhgIAAMwDACCKAgAAhQMAMAQeAAC3AwAwhAIAALgDADCGAgAAugMAIIoCAAC7AwAwBB4AAJcDADCEAgAAmAMAMIYCAACaAwAgigIAAJsDADADHgAAjQUAIIQCAACOBQAgigIAAAEAIAAACQQAAOQEACAFAADlBAAgCAAA5gQAIA0AAOUDACAQAADnBAAgEQAA6AQAINYBAADyAgAg4gEAAPICACD9AQAA8gIAIAAAAAAAAAAAAAAFHgAAiAUAIB8AAIsFACCEAgAAiQUAIIUCAACKBQAgigIAAOcBACADHgAAiAUAIIQCAACJBQAgigIAAOcBACAAAAAAAAUeAACDBQAgHwAAhgUAIIQCAACEBQAghQIAAIUFACCKAgAA5wEAIAMeAACDBQAghAIAAIQFACCKAgAA5wEAIAAAAAUeAAD9BAAgHwAAgQUAIIQCAAD-BAAghQIAAIAFACCKAgAAAQAgCx4AAP8DADAfAACDBAAwhAIAAIAEADCFAgAAgQQAMIYCAACCBAAghwIAALsDADCIAgAAuwMAMIkCAAC7AwAwigIAALsDADCLAgAAhAQAMIwCAAC-AwAwDwgAAPkDACALAADfAwAgEAAA4AMAIL0BAQAAAAHDAQAAAOsBAsUBQAAAAAHGAUAAAAAB1QEBAAAAAdYBAQAAAAHbAQIAAAAB3QEBAAAAAeMBAQAAAAHkASAAAAAB5gEAAADmAQLpAQAAAOkBAgIAAAANACAeAACHBAAgAwAAAA0AIB4AAIcEACAfAACGBAAgARcAAP8EADACAAAADQAgFwAAhgQAIAIAAAC_AwAgFwAAhQQAIAy9AQEA-AIAIcMBAADEA-sBIsUBQAD7AgAhxgFAAPsCACHVAQEA_AIAIdYBAQD8AgAh2wECAPkCACHdAQEA-AIAIeMBAQD4AgAh5AEgAMEDACHmAQAAwgPmASLpAQAAwwPpASIPCAAA-AMAIAsAAMcDACAQAADIAwAgvQEBAPgCACHDAQAAxAPrASLFAUAA-wIAIcYBQAD7AgAh1QEBAPwCACHWAQEA_AIAIdsBAgD5AgAh3QEBAPgCACHjAQEA-AIAIeQBIADBAwAh5gEAAMID5gEi6QEAAMMD6QEiDwgAAPkDACALAADfAwAgEAAA4AMAIL0BAQAAAAHDAQAAAOsBAsUBQAAAAAHGAUAAAAAB1QEBAAAAAdYBAQAAAAHbAQIAAAAB3QEBAAAAAeMBAQAAAAHkASAAAAAB5gEAAADmAQLpAQAAAOkBAgMeAAD9BAAghAIAAP4EACCKAgAAAQAgBB4AAP8DADCEAgAAgAQAMIYCAACCBAAgigIAALsDADAAAAAAAAABhwJAAAAAAQUeAAD4BAAgHwAA-wQAIIQCAAD5BAAghQIAAPoEACCKAgAAAQAgAx4AAPgEACCEAgAA-QQAIIoCAAABACAAAAAFHgAA8wQAIB8AAPYEACCEAgAA9AQAIIUCAAD1BAAgigIAAAEAIAMeAADzBAAghAIAAPQEACCKAgAAAQAgAAAAAYcCAAAA_wECAYcCAAAAgQICCx4AANIEADAfAADXBAAwhAIAANMEADCFAgAA1AQAMIYCAADVBAAghwIAANYEADCIAgAA1gQAMIkCAADWBAAwigIAANYEADCLAgAA2AQAMIwCAADZBAAwCx4AAMYEADAfAADLBAAwhAIAAMcEADCFAgAAyAQAMIYCAADJBAAghwIAAMoEADCIAgAAygQAMIkCAADKBAAwigIAAMoEADCLAgAAzAQAMIwCAADNBAAwCx4AAL0EADAfAADBBAAwhAIAAL4EADCFAgAAvwQAMIYCAADABAAghwIAAJsDADCIAgAAmwMAMIkCAACbAwAwigIAAJsDADCLAgAAwgQAMIwCAACeAwAwBx4AALgEACAfAAC7BAAghAIAALkEACCFAgAAugQAIIgCAAAnACCJAgAAJwAgigIAAOcBACALHgAArwQAMB8AALMEADCEAgAAsAQAMIUCAACxBAAwhgIAALIEACCHAgAAhQMAMIgCAACFAwAwiQIAAIUDADCKAgAAhQMAMIsCAAC0BAAwjAIAAIgDADALHgAAowQAMB8AAKgEADCEAgAApAQAMIUCAAClBAAwhgIAAKYEACCHAgAApwQAMIgCAACnBAAwiQIAAKcEADCKAgAApwQAMIsCAACpBAAwjAIAAKoEADAHvQEBAAAAAcUBQAAAAAHGAUAAAAAB7wFAAAAAAfgBAQAAAAH5AQEAAAAB-gEBAAAAAQIAAAAsACAeAACuBAAgAwAAACwAIB4AAK4EACAfAACtBAAgARcAAPIEADAMAwAAsAIAILoBAADdAgAwuwEAACoAELwBAADdAgAwvQEBAAAAAcUBQACtAgAhxgFAAK0CACHSAQEAqwIAIe8BQACtAgAh-AEBAAAAAfkBAQCsAgAh-gEBAKwCACECAAAALAAgFwAArQQAIAIAAACrBAAgFwAArAQAIAu6AQAAqgQAMLsBAACrBAAQvAEAAKoEADC9AQEAqwIAIcUBQACtAgAhxgFAAK0CACHSAQEAqwIAIe8BQACtAgAh-AEBAKsCACH5AQEArAIAIfoBAQCsAgAhC7oBAACqBAAwuwEAAKsEABC8AQAAqgQAML0BAQCrAgAhxQFAAK0CACHGAUAArQIAIdIBAQCrAgAh7wFAAK0CACH4AQEAqwIAIfkBAQCsAgAh-gEBAKwCACEHvQEBAPgCACHFAUAA-wIAIcYBQAD7AgAh7wFAAPsCACH4AQEA-AIAIfkBAQD8AgAh-gEBAPwCACEHvQEBAPgCACHFAUAA-wIAIcYBQAD7AgAh7wFAAPsCACH4AQEA-AIAIfkBAQD8AgAh-gEBAPwCACEHvQEBAAAAAcUBQAAAAAHGAUAAAAAB7wFAAAAAAfgBAQAAAAH5AQEAAAAB-gEBAAAAAQsJAACOAwAgDgAAkAMAIA8AAI8DACC9AQEAAAABvwEBAAAAAcABAQAAAAHBAQIAAAABwwEAAADDAQLEAQEAAAABxQFAAAAAAcYBQAAAAAECAAAAHgAgHgAAtwQAIAMAAAAeACAeAAC3BAAgHwAAtgQAIAEXAADxBAAwAgAAAB4AIBcAALYEACACAAAAiQMAIBcAALUEACAIvQEBAPgCACG_AQEA-AIAIcABAQD8AgAhwQECAPkCACHDAQAA-gLDASLEAQEA-AIAIcUBQAD7AgAhxgFAAPsCACELCQAA_gIAIA4AAP8CACAPAACAAwAgvQEBAPgCACG_AQEA-AIAIcABAQD8AgAhwQECAPkCACHDAQAA-gLDASLEAQEA-AIAIcUBQAD7AgAhxgFAAPsCACELCQAAjgMAIA4AAJADACAPAACPAwAgvQEBAAAAAb8BAQAAAAHAAQEAAAABwQECAAAAAcMBAAAAwwECxAEBAAAAAcUBQAAAAAHGAUAAAAABCQYAAOEDACANAADiAwAgvQEBAAAAAcUBQAAAAAHGAUAAAAAB0wEBAAAAAdQBAQAAAAHVAQEAAAAB1gEBAAAAAQIAAADnAQAgHgAAuAQAIAMAAAAnACAeAAC4BAAgHwAAvAQAIAsAAAAnACAGAACUAwAgDQAAlQMAIBcAALwEACC9AQEA-AIAIcUBQAD7AgAhxgFAAPsCACHTAQEA-AIAIdQBAQD4AgAh1QEBAPwCACHWAQEA_AIAIQkGAACUAwAgDQAAlQMAIL0BAQD4AgAhxQFAAPsCACHGAUAA-wIAIdMBAQD4AgAh1AEBAPgCACHVAQEA_AIAIdYBAQD8AgAhDAgAAPIDACALAAC2AwAgvQEBAAAAAcMBAAAA4QECxQFAAAAAAcYBQAAAAAHUAQEAAAAB3QEBAAAAAd4BAQAAAAHfAQEAAAAB4QECAAAAAeIBAQAAAAECAAAAEgAgHgAAxQQAIAMAAAASACAeAADFBAAgHwAAxAQAIAEXAADwBAAwAgAAABIAIBcAAMQEACACAAAAnwMAIBcAAMMEACAKvQEBAPgCACHDAQAAoQPhASLFAUAA-wIAIcYBQAD7AgAh1AEBAPgCACHdAQEA-AIAId4BAQD8AgAh3wEBAPwCACHhAQIA-QIAIeIBAQD8AgAhDAgAAPEDACALAACkAwAgvQEBAPgCACHDAQAAoQPhASLFAUAA-wIAIcYBQAD7AgAh1AEBAPgCACHdAQEA-AIAId4BAQD8AgAh3wEBAPwCACHhAQIA-QIAIeIBAQD8AgAhDAgAAPIDACALAAC2AwAgvQEBAAAAAcMBAAAA4QECxQFAAAAAAcYBQAAAAAHUAQEAAAAB3QEBAAAAAd4BAQAAAAHfAQEAAAAB4QECAAAAAeIBAQAAAAEGBgAAiQQAIL0BAQAAAAHFAUAAAAABxgFAAAAAAdYBAQAAAAHsAQEAAAABAgAAAAkAIB4AANEEACADAAAACQAgHgAA0QQAIB8AANAEACABFwAA7wQAMAsDAACwAgAgBgAArgIAILoBAADvAgAwuwEAAAcAELwBAADvAgAwvQEBAAAAAcUBQACtAgAhxgFAAK0CACHWAQEAqwIAIesBAQCrAgAh7AEBAAAAAQIAAAAJACAXAADQBAAgAgAAAM4EACAXAADPBAAgCboBAADNBAAwuwEAAM4EABC8AQAAzQQAML0BAQCrAgAhxQFAAK0CACHGAUAArQIAIdYBAQCrAgAh6wEBAKsCACHsAQEAqwIAIQm6AQAAzQQAMLsBAADOBAAQvAEAAM0EADC9AQEAqwIAIcUBQACtAgAhxgFAAK0CACHWAQEAqwIAIesBAQCrAgAh7AEBAKsCACEFvQEBAPgCACHFAUAA-wIAIcYBQAD7AgAh1gEBAPgCACHsAQEA-AIAIQYGAAD-AwAgvQEBAPgCACHFAUAA-wIAIcYBQAD7AgAh1gEBAPgCACHsAQEA-AIAIQYGAACJBAAgvQEBAAAAAcUBQAAAAAHGAUAAAAAB1gEBAAAAAewBAQAAAAEMvQEBAAAAAcUBQAAAAAHGAUAAAAAB3QEBAAAAAfABAQAAAAHxAQEAAAAB8gEBAAAAAfMBAQAAAAH0AUAAAAAB9QFAAAAAAfYBAQAAAAH3AQEAAAABAgAAAAUAIB4AAN0EACADAAAABQAgHgAA3QQAIB8AANwEACABFwAA7gQAMBEDAACwAgAgugEAAPACADC7AQAAAwAQvAEAAPACADC9AQEAAAABxQFAAK0CACHGAUAArQIAIdIBAQCrAgAh3QEBAKsCACHwAQEAqwIAIfEBAQCsAgAh8gEBAKwCACHzAQEArAIAIfQBQADxAgAh9QFAAPECACH2AQEArAIAIfcBAQCsAgAhAgAAAAUAIBcAANwEACACAAAA2gQAIBcAANsEACAQugEAANkEADC7AQAA2gQAELwBAADZBAAwvQEBAKsCACHFAUAArQIAIcYBQACtAgAh0gEBAKsCACHdAQEAqwIAIfABAQCrAgAh8QEBAKwCACHyAQEArAIAIfMBAQCsAgAh9AFAAPECACH1AUAA8QIAIfYBAQCsAgAh9wEBAKwCACEQugEAANkEADC7AQAA2gQAELwBAADZBAAwvQEBAKsCACHFAUAArQIAIcYBQACtAgAh0gEBAKsCACHdAQEAqwIAIfABAQCrAgAh8QEBAKwCACHyAQEArAIAIfMBAQCsAgAh9AFAAPECACH1AUAA8QIAIfYBAQCsAgAh9wEBAKwCACEMvQEBAPgCACHFAUAA-wIAIcYBQAD7AgAh3QEBAPgCACHwAQEA-AIAIfEBAQD8AgAh8gEBAPwCACHzAQEA_AIAIfQBQACQBAAh9QFAAJAEACH2AQEA_AIAIfcBAQD8AgAhDL0BAQD4AgAhxQFAAPsCACHGAUAA-wIAId0BAQD4AgAh8AEBAPgCACHxAQEA_AIAIfIBAQD8AgAh8wEBAPwCACH0AUAAkAQAIfUBQACQBAAh9gEBAPwCACH3AQEA_AIAIQy9AQEAAAABxQFAAAAAAcYBQAAAAAHdAQEAAAAB8AEBAAAAAfEBAQAAAAHyAQEAAAAB8wEBAAAAAfQBQAAAAAH1AUAAAAAB9gEBAAAAAfcBAQAAAAEEHgAA0gQAMIQCAADTBAAwhgIAANUEACCKAgAA1gQAMAQeAADGBAAwhAIAAMcEADCGAgAAyQQAIIoCAADKBAAwBB4AAL0EADCEAgAAvgQAMIYCAADABAAgigIAAJsDADADHgAAuAQAIIQCAAC5BAAgigIAAOcBACAEHgAArwQAMIQCAACwBAAwhgIAALIEACCKAgAAhQMAMAQeAACjBAAwhAIAAKQEADCGAgAApgQAIIoCAACnBAAwAAAFAwAA5gMAIAYAAOQDACANAADlAwAg1QEAAPICACDWAQAA8gIAIAAABgUAAO0EACAIAADmBAAgCwAA7AQAIBAAAOcEACDVAQAA8gIAINYBAADyAgAgBQcAAOYDACAJAADpBAAgDgAA6gQAIA8AAOcEACDAAQAA8gIAIAYHAADmAwAgCAAA5gQAIAsAAOwEACDeAQAA8gIAIN8BAADyAgAg4gEAAPICACAAAgMAAOYDACAGAADkAwAgDL0BAQAAAAHFAUAAAAABxgFAAAAAAd0BAQAAAAHwAQEAAAAB8QEBAAAAAfIBAQAAAAHzAQEAAAAB9AFAAAAAAfUBQAAAAAH2AQEAAAAB9wEBAAAAAQW9AQEAAAABxQFAAAAAAcYBQAAAAAHWAQEAAAAB7AEBAAAAAQq9AQEAAAABwwEAAADhAQLFAUAAAAABxgFAAAAAAdQBAQAAAAHdAQEAAAAB3gEBAAAAAd8BAQAAAAHhAQIAAAAB4gEBAAAAAQi9AQEAAAABvwEBAAAAAcABAQAAAAHBAQIAAAABwwEAAADDAQLEAQEAAAABxQFAAAAAAcYBQAAAAAEHvQEBAAAAAcUBQAAAAAHGAUAAAAAB7wFAAAAAAfgBAQAAAAH5AQEAAAAB-gEBAAAAAREEAADeBAAgBQAA3wQAIAgAAOEEACANAADgBAAgEAAA4gQAIL0BAQAAAAHDAQAAAIECAsUBQAAAAAHGAUAAAAAB1gEBAAAAAeIBAQAAAAHsAQEAAAAB-wEBAAAAAfwBIAAAAAH9AQEAAAAB_wEAAAD_AQKBAiAAAAABAgAAAAEAIB4AAPMEACADAAAANAAgHgAA8wQAIB8AAPcEACATAAAANAAgBAAAnQQAIAUAAJ4EACAIAACgBAAgDQAAnwQAIBAAAKEEACAXAAD3BAAgvQEBAPgCACHDAQAAnASBAiLFAUAA-wIAIcYBQAD7AgAh1gEBAPwCACHiAQEA_AIAIewBAQD4AgAh-wEBAPgCACH8ASAAwQMAIf0BAQD8AgAh_wEAAJsE_wEigQIgAMEDACERBAAAnQQAIAUAAJ4EACAIAACgBAAgDQAAnwQAIBAAAKEEACC9AQEA-AIAIcMBAACcBIECIsUBQAD7AgAhxgFAAPsCACHWAQEA_AIAIeIBAQD8AgAh7AEBAPgCACH7AQEA-AIAIfwBIADBAwAh_QEBAPwCACH_AQAAmwT_ASKBAiAAwQMAIREFAADfBAAgCAAA4QQAIA0AAOAEACAQAADiBAAgEQAA4wQAIL0BAQAAAAHDAQAAAIECAsUBQAAAAAHGAUAAAAAB1gEBAAAAAeIBAQAAAAHsAQEAAAAB-wEBAAAAAfwBIAAAAAH9AQEAAAAB_wEAAAD_AQKBAiAAAAABAgAAAAEAIB4AAPgEACADAAAANAAgHgAA-AQAIB8AAPwEACATAAAANAAgBQAAngQAIAgAAKAEACANAACfBAAgEAAAoQQAIBEAAKIEACAXAAD8BAAgvQEBAPgCACHDAQAAnASBAiLFAUAA-wIAIcYBQAD7AgAh1gEBAPwCACHiAQEA_AIAIewBAQD4AgAh-wEBAPgCACH8ASAAwQMAIf0BAQD8AgAh_wEAAJsE_wEigQIgAMEDACERBQAAngQAIAgAAKAEACANAACfBAAgEAAAoQQAIBEAAKIEACC9AQEA-AIAIcMBAACcBIECIsUBQAD7AgAhxgFAAPsCACHWAQEA_AIAIeIBAQD8AgAh7AEBAPgCACH7AQEA-AIAIfwBIADBAwAh_QEBAPwCACH_AQAAmwT_ASKBAiAAwQMAIREEAADeBAAgCAAA4QQAIA0AAOAEACAQAADiBAAgEQAA4wQAIL0BAQAAAAHDAQAAAIECAsUBQAAAAAHGAUAAAAAB1gEBAAAAAeIBAQAAAAHsAQEAAAAB-wEBAAAAAfwBIAAAAAH9AQEAAAAB_wEAAAD_AQKBAiAAAAABAgAAAAEAIB4AAP0EACAMvQEBAAAAAcMBAAAA6wECxQFAAAAAAcYBQAAAAAHVAQEAAAAB1gEBAAAAAdsBAgAAAAHdAQEAAAAB4wEBAAAAAeQBIAAAAAHmAQAAAOYBAukBAAAA6QECAwAAADQAIB4AAP0EACAfAACCBQAgEwAAADQAIAQAAJ0EACAIAACgBAAgDQAAnwQAIBAAAKEEACARAACiBAAgFwAAggUAIL0BAQD4AgAhwwEAAJwEgQIixQFAAPsCACHGAUAA-wIAIdYBAQD8AgAh4gEBAPwCACHsAQEA-AIAIfsBAQD4AgAh_AEgAMEDACH9AQEA_AIAIf8BAACbBP8BIoECIADBAwAhEQQAAJ0EACAIAACgBAAgDQAAnwQAIBAAAKEEACARAACiBAAgvQEBAPgCACHDAQAAnASBAiLFAUAA-wIAIcYBQAD7AgAh1gEBAPwCACHiAQEA_AIAIewBAQD4AgAh-wEBAPgCACH8ASAAwQMAIf0BAQD8AgAh_wEAAJsE_wEigQIgAMEDACEKAwAA4wMAIA0AAOIDACC9AQEAAAABxQFAAAAAAcYBQAAAAAHSAQEAAAAB0wEBAAAAAdQBAQAAAAHVAQEAAAAB1gEBAAAAAQIAAADnAQAgHgAAgwUAIAMAAAAnACAeAACDBQAgHwAAhwUAIAwAAAAnACADAACWAwAgDQAAlQMAIBcAAIcFACC9AQEA-AIAIcUBQAD7AgAhxgFAAPsCACHSAQEA-AIAIdMBAQD4AgAh1AEBAPgCACHVAQEA_AIAIdYBAQD8AgAhCgMAAJYDACANAACVAwAgvQEBAPgCACHFAUAA-wIAIcYBQAD7AgAh0gEBAPgCACHTAQEA-AIAIdQBAQD4AgAh1QEBAPwCACHWAQEA_AIAIQoDAADjAwAgBgAA4QMAIL0BAQAAAAHFAUAAAAABxgFAAAAAAdIBAQAAAAHTAQEAAAAB1AEBAAAAAdUBAQAAAAHWAQEAAAABAgAAAOcBACAeAACIBQAgAwAAACcAIB4AAIgFACAfAACMBQAgDAAAACcAIAMAAJYDACAGAACUAwAgFwAAjAUAIL0BAQD4AgAhxQFAAPsCACHGAUAA-wIAIdIBAQD4AgAh0wEBAPgCACHUAQEA-AIAIdUBAQD8AgAh1gEBAPwCACEKAwAAlgMAIAYAAJQDACC9AQEA-AIAIcUBQAD7AgAhxgFAAPsCACHSAQEA-AIAIdMBAQD4AgAh1AEBAPgCACHVAQEA_AIAIdYBAQD8AgAhEQQAAN4EACAFAADfBAAgDQAA4AQAIBAAAOIEACARAADjBAAgvQEBAAAAAcMBAAAAgQICxQFAAAAAAcYBQAAAAAHWAQEAAAAB4gEBAAAAAewBAQAAAAH7AQEAAAAB_AEgAAAAAf0BAQAAAAH_AQAAAP8BAoECIAAAAAECAAAAAQAgHgAAjQUAIAcDAACIBAAgvQEBAAAAAcUBQAAAAAHGAUAAAAAB1gEBAAAAAesBAQAAAAHsAQEAAAABAgAAAAkAIB4AAI8FACANBwAAtQMAIAgAAPIDACC9AQEAAAABvgEBAAAAAcMBAAAA4QECxQFAAAAAAcYBQAAAAAHUAQEAAAAB3QEBAAAAAd4BAQAAAAHfAQEAAAAB4QECAAAAAeIBAQAAAAECAAAAEgAgHgAAkQUAIAMAAAAQACAeAACRBQAgHwAAlQUAIA8AAAAQACAHAACjAwAgCAAA8QMAIBcAAJUFACC9AQEA-AIAIb4BAQD4AgAhwwEAAKED4QEixQFAAPsCACHGAUAA-wIAIdQBAQD4AgAh3QEBAPgCACHeAQEA_AIAId8BAQD8AgAh4QECAPkCACHiAQEA_AIAIQ0HAACjAwAgCAAA8QMAIL0BAQD4AgAhvgEBAPgCACHDAQAAoQPhASLFAUAA-wIAIcYBQAD7AgAh1AEBAPgCACHdAQEA-AIAId4BAQD8AgAh3wEBAPwCACHhAQIA-QIAIeIBAQD8AgAhBr0BAQAAAAHFAUAAAAABxgFAAAAAAdoBAQAAAAHbAQgAAAAB3AECAAAAAQi9AQEAAAABvgEBAAAAAcABAQAAAAHBAQIAAAABwwEAAADDAQLEAQEAAAABxQFAAAAAAcYBQAAAAAEDAAAABwAgHgAAjwUAIB8AAJoFACAJAAAABwAgAwAA_QMAIBcAAJoFACC9AQEA-AIAIcUBQAD7AgAhxgFAAPsCACHWAQEA-AIAIesBAQD4AgAh7AEBAPgCACEHAwAA_QMAIL0BAQD4AgAhxQFAAPsCACHGAUAA-wIAIdYBAQD4AgAh6wEBAPgCACHsAQEA-AIAIQy9AQEAAAABwwEAAADrAQLFAUAAAAABxgFAAAAAAdUBAQAAAAHWAQEAAAAB2wECAAAAAeMBAQAAAAHkASAAAAAB5gEAAADmAQLnAQEAAAAB6QEAAADpAQIRBAAA3gQAIAUAAN8EACAIAADhBAAgEAAA4gQAIBEAAOMEACC9AQEAAAABwwEAAACBAgLFAUAAAAABxgFAAAAAAdYBAQAAAAHiAQEAAAAB7AEBAAAAAfsBAQAAAAH8ASAAAAAB_QEBAAAAAf8BAAAA_wECgQIgAAAAAQIAAAABACAeAACcBQAgEAUAAN4DACAIAAD5AwAgEAAA4AMAIL0BAQAAAAHDAQAAAOsBAsUBQAAAAAHGAUAAAAAB1QEBAAAAAdYBAQAAAAHbAQIAAAAB3QEBAAAAAeMBAQAAAAHkASAAAAAB5gEAAADmAQLnAQEAAAAB6QEAAADpAQICAAAADQAgHgAAngUAIAMAAAALACAeAACeBQAgHwAAogUAIBIAAAALACAFAADGAwAgCAAA-AMAIBAAAMgDACAXAACiBQAgvQEBAPgCACHDAQAAxAPrASLFAUAA-wIAIcYBQAD7AgAh1QEBAPwCACHWAQEA_AIAIdsBAgD5AgAh3QEBAPgCACHjAQEA-AIAIeQBIADBAwAh5gEAAMID5gEi5wEBAPgCACHpAQAAwwPpASIQBQAAxgMAIAgAAPgDACAQAADIAwAgvQEBAPgCACHDAQAAxAPrASLFAUAA-wIAIcYBQAD7AgAh1QEBAPwCACHWAQEA_AIAIdsBAgD5AgAh3QEBAPgCACHjAQEA-AIAIeQBIADBAwAh5gEAAMID5gEi5wEBAPgCACHpAQAAwwPpASIGvQEBAAAAAb8BAQAAAAHFAUAAAAABxgFAAAAAAdsBCAAAAAHcAQIAAAABAwAAADQAIB4AAJwFACAfAACmBQAgEwAAADQAIAQAAJ0EACAFAACeBAAgCAAAoAQAIBAAAKEEACARAACiBAAgFwAApgUAIL0BAQD4AgAhwwEAAJwEgQIixQFAAPsCACHGAUAA-wIAIdYBAQD8AgAh4gEBAPwCACHsAQEA-AIAIfsBAQD4AgAh_AEgAMEDACH9AQEA_AIAIf8BAACbBP8BIoECIADBAwAhEQQAAJ0EACAFAACeBAAgCAAAoAQAIBAAAKEEACARAACiBAAgvQEBAPgCACHDAQAAnASBAiLFAUAA-wIAIcYBQAD7AgAh1gEBAPwCACHiAQEA_AIAIewBAQD4AgAh-wEBAPgCACH8ASAAwQMAIf0BAQD8AgAh_wEAAJsE_wEigQIgAMEDACEKvQEBAAAAAb4BAQAAAAHDAQAAAOEBAsUBQAAAAAHGAUAAAAAB1AEBAAAAAd4BAQAAAAHfAQEAAAAB4QECAAAAAeIBAQAAAAEDAAAANAAgHgAAjQUAIB8AAKoFACATAAAANAAgBAAAnQQAIAUAAJ4EACANAACfBAAgEAAAoQQAIBEAAKIEACAXAACqBQAgvQEBAPgCACHDAQAAnASBAiLFAUAA-wIAIcYBQAD7AgAh1gEBAPwCACHiAQEA_AIAIewBAQD4AgAh-wEBAPgCACH8ASAAwQMAIf0BAQD8AgAh_wEAAJsE_wEigQIgAMEDACERBAAAnQQAIAUAAJ4EACANAACfBAAgEAAAoQQAIBEAAKIEACC9AQEA-AIAIcMBAACcBIECIsUBQAD7AgAhxgFAAPsCACHWAQEA_AIAIeIBAQD8AgAh7AEBAPgCACH7AQEA-AIAIfwBIADBAwAh_QEBAPwCACH_AQAAmwT_ASKBAiAAwQMAIQwHAACNAwAgCQAAjgMAIA4AAJADACC9AQEAAAABvgEBAAAAAb8BAQAAAAHAAQEAAAABwQECAAAAAcMBAAAAwwECxAEBAAAAAcUBQAAAAAHGAUAAAAABAgAAAB4AIB4AAKsFACAQBQAA3gMAIAgAAPkDACALAADfAwAgvQEBAAAAAcMBAAAA6wECxQFAAAAAAcYBQAAAAAHVAQEAAAAB1gEBAAAAAdsBAgAAAAHdAQEAAAAB4wEBAAAAAeQBIAAAAAHmAQAAAOYBAucBAQAAAAHpAQAAAOkBAgIAAAANACAeAACtBQAgEQQAAN4EACAFAADfBAAgCAAA4QQAIA0AAOAEACARAADjBAAgvQEBAAAAAcMBAAAAgQICxQFAAAAAAcYBQAAAAAHWAQEAAAAB4gEBAAAAAewBAQAAAAH7AQEAAAAB_AEgAAAAAf0BAQAAAAH_AQAAAP8BAoECIAAAAAECAAAAAQAgHgAArwUAIAi9AQEAAAABvgEBAAAAAb8BAQAAAAHBAQIAAAABwwEAAADDAQLEAQEAAAABxQFAAAAAAcYBQAAAAAEDAAAAHAAgHgAAqwUAIB8AALQFACAOAAAAHAAgBwAA_QIAIAkAAP4CACAOAAD_AgAgFwAAtAUAIL0BAQD4AgAhvgEBAPgCACG_AQEA-AIAIcABAQD8AgAhwQECAPkCACHDAQAA-gLDASLEAQEA-AIAIcUBQAD7AgAhxgFAAPsCACEMBwAA_QIAIAkAAP4CACAOAAD_AgAgvQEBAPgCACG-AQEA-AIAIb8BAQD4AgAhwAEBAPwCACHBAQIA-QIAIcMBAAD6AsMBIsQBAQD4AgAhxQFAAPsCACHGAUAA-wIAIQMAAAALACAeAACtBQAgHwAAtwUAIBIAAAALACAFAADGAwAgCAAA-AMAIAsAAMcDACAXAAC3BQAgvQEBAPgCACHDAQAAxAPrASLFAUAA-wIAIcYBQAD7AgAh1QEBAPwCACHWAQEA_AIAIdsBAgD5AgAh3QEBAPgCACHjAQEA-AIAIeQBIADBAwAh5gEAAMID5gEi5wEBAPgCACHpAQAAwwPpASIQBQAAxgMAIAgAAPgDACALAADHAwAgvQEBAPgCACHDAQAAxAPrASLFAUAA-wIAIcYBQAD7AgAh1QEBAPwCACHWAQEA_AIAIdsBAgD5AgAh3QEBAPgCACHjAQEA-AIAIeQBIADBAwAh5gEAAMID5gEi5wEBAPgCACHpAQAAwwPpASIDAAAANAAgHgAArwUAIB8AALoFACATAAAANAAgBAAAnQQAIAUAAJ4EACAIAACgBAAgDQAAnwQAIBEAAKIEACAXAAC6BQAgvQEBAPgCACHDAQAAnASBAiLFAUAA-wIAIcYBQAD7AgAh1gEBAPwCACHiAQEA_AIAIewBAQD4AgAh-wEBAPgCACH8ASAAwQMAIf0BAQD8AgAh_wEAAJsE_wEigQIgAMEDACERBAAAnQQAIAUAAJ4EACAIAACgBAAgDQAAnwQAIBEAAKIEACC9AQEA-AIAIcMBAACcBIECIsUBQAD7AgAhxgFAAPsCACHWAQEA_AIAIeIBAQD8AgAh7AEBAPgCACH7AQEA-AIAIfwBIADBAwAh_QEBAPwCACH_AQAAmwT_ASKBAiAAwQMAIQcEBgIFCgMIKAUMAA8NJgYQKQoRLQ4BAwABAwMAAQYOBAwADQUFAAMIAAULGwcMAAwQHwoEAwABBg8EDAAJDRMGBAcAAQgABQsXBwwACAIJAAQKAAYBCxgAAgYZAA0aAAUHAAEJAAQMAAsOIAoPIQoBDyIAAgsjABAkAAEGJQABAwABBQQuAAUvAA0wABAxABEyAAAAAAMMABQkABUlABYAAAADDAAUJAAVJQAWAQMAAQEDAAEDDAAbJAAcJQAdAAAAAwwAGyQAHCUAHQEDAAEBAwABAwwAIiQAIyUAJAAAAAMMACIkACMlACQAAAADDAAqJAArJQAsAAAAAwwAKiQAKyUALAEDAAEBAwABAwwAMSQAMiUAMwAAAAMMADEkADIlADMCBQADCAAFAgUAAwgABQUMADgkADslADx2ADl3ADoAAAAAAAUMADgkADslADx2ADl3ADoCBwABCAAFAgcAAQgABQUMAEEkAEQlAEV2AEJ3AEMAAAAAAAUMAEEkAEQlAEV2AEJ3AEMCCQAECgAGAgkABAoABgUMAEokAE0lAE52AEt3AEwAAAAAAAUMAEokAE0lAE52AEt3AEwBAwABAQMAAQMMAFMkAFQlAFUAAAADDABTJABUJQBVAwcAAQkABA6JAgoDBwABCQAEDo8CCgUMAFokAF0lAF52AFt3AFwAAAAAAAUMAFokAF0lAF52AFt3AFwSAgETMwEUNgEVNwEWOAEYOgEZPBAaPREbPwEcQRAdQhIgQwEhRAEiRRAmSBMnSRcoSg4pSw4qTA4rTQ4sTg4tUA4uUhAvUxgwVQ4xVxAyWBkzWQ40Wg41WxA2Xho3Xx44YAI5YQI6YgI7YwI8ZAI9ZgI-aBA_aR9AawJBbRBCbiBDbwJEcAJFcRBGdCFHdSVIdyZJeCZKeyZLfCZMfSZNfyZOgQEQT4IBJ1CEASZRhgEQUocBKFOIASZUiQEmVYoBEFaNASlXjgEtWI8BA1mQAQNakQEDW5IBA1yTAQNdlQEDXpcBEF-YAS5gmgEDYZwBEGKdAS9jngEDZJ8BA2WgARBmowEwZ6QBNGilAQRppgEEaqcBBGuoAQRsqQEEbasBBG6tARBvrgE1cLABBHGyARByswE2c7QBBHS1AQR1tgEQeLkBN3m6AT16uwEGe7wBBny9AQZ9vgEGfr8BBn_BAQaAAcMBEIEBxAE-ggHGAQaDAcgBEIQByQE_hQHKAQaGAcsBBocBzAEQiAHPAUCJAdABRooB0QEHiwHSAQeMAdMBB40B1AEHjgHVAQePAdcBB5AB2QEQkQHaAUeSAdwBB5MB3gEQlAHfAUiVAeABB5YB4QEHlwHiARCYAeUBSZkB5gFPmgHoAQWbAekBBZwB6wEFnQHsAQWeAe0BBZ8B7wEFoAHxARChAfIBUKIB9AEFowH2ARCkAfcBUaUB-AEFpgH5AQWnAfoBEKgB_QFSqQH-AVaqAf8BCqsBgAIKrAGBAgqtAYICCq4BgwIKrwGFAgqwAYcCELEBiAJXsgGLAgqzAY0CELQBjgJYtQGQAgq2AZECCrcBkgIQuAGVAlm5AZYCXw"
+  strings: JSON.parse('["where","orderBy","cursor","user","accounts","category","meals","customer","provider","meal","order","orderitem","payment","_count","orders","parent","replies","reviews","payments","sessions","User.findUnique","User.findUniqueOrThrow","User.findFirst","User.findFirstOrThrow","User.findMany","data","User.createOne","User.createMany","User.createManyAndReturn","User.updateOne","User.updateMany","User.updateManyAndReturn","create","update","User.upsertOne","User.deleteOne","User.deleteMany","having","_min","_max","User.groupBy","User.aggregate","Session.findUnique","Session.findUniqueOrThrow","Session.findFirst","Session.findFirstOrThrow","Session.findMany","Session.createOne","Session.createMany","Session.createManyAndReturn","Session.updateOne","Session.updateMany","Session.updateManyAndReturn","Session.upsertOne","Session.deleteOne","Session.deleteMany","Session.groupBy","Session.aggregate","Account.findUnique","Account.findUniqueOrThrow","Account.findFirst","Account.findFirstOrThrow","Account.findMany","Account.createOne","Account.createMany","Account.createManyAndReturn","Account.updateOne","Account.updateMany","Account.updateManyAndReturn","Account.upsertOne","Account.deleteOne","Account.deleteMany","Account.groupBy","Account.aggregate","Verification.findUnique","Verification.findUniqueOrThrow","Verification.findFirst","Verification.findFirstOrThrow","Verification.findMany","Verification.createOne","Verification.createMany","Verification.createManyAndReturn","Verification.updateOne","Verification.updateMany","Verification.updateManyAndReturn","Verification.upsertOne","Verification.deleteOne","Verification.deleteMany","Verification.groupBy","Verification.aggregate","Category.findUnique","Category.findUniqueOrThrow","Category.findFirst","Category.findFirstOrThrow","Category.findMany","Category.createOne","Category.createMany","Category.createManyAndReturn","Category.updateOne","Category.updateMany","Category.updateManyAndReturn","Category.upsertOne","Category.deleteOne","Category.deleteMany","Category.groupBy","Category.aggregate","Meal.findUnique","Meal.findUniqueOrThrow","Meal.findFirst","Meal.findFirstOrThrow","Meal.findMany","Meal.createOne","Meal.createMany","Meal.createManyAndReturn","Meal.updateOne","Meal.updateMany","Meal.updateManyAndReturn","Meal.upsertOne","Meal.deleteOne","Meal.deleteMany","_avg","_sum","Meal.groupBy","Meal.aggregate","Order.findUnique","Order.findUniqueOrThrow","Order.findFirst","Order.findFirstOrThrow","Order.findMany","Order.createOne","Order.createMany","Order.createManyAndReturn","Order.updateOne","Order.updateMany","Order.updateManyAndReturn","Order.upsertOne","Order.deleteOne","Order.deleteMany","Order.groupBy","Order.aggregate","Orderitem.findUnique","Orderitem.findUniqueOrThrow","Orderitem.findFirst","Orderitem.findFirstOrThrow","Orderitem.findMany","Orderitem.createOne","Orderitem.createMany","Orderitem.createManyAndReturn","Orderitem.updateOne","Orderitem.updateMany","Orderitem.updateManyAndReturn","Orderitem.upsertOne","Orderitem.deleteOne","Orderitem.deleteMany","Orderitem.groupBy","Orderitem.aggregate","Payment.findUnique","Payment.findUniqueOrThrow","Payment.findFirst","Payment.findFirstOrThrow","Payment.findMany","Payment.createOne","Payment.createMany","Payment.createManyAndReturn","Payment.updateOne","Payment.updateMany","Payment.updateManyAndReturn","Payment.upsertOne","Payment.deleteOne","Payment.deleteMany","Payment.groupBy","Payment.aggregate","ProviderProfile.findUnique","ProviderProfile.findUniqueOrThrow","ProviderProfile.findFirst","ProviderProfile.findFirstOrThrow","ProviderProfile.findMany","ProviderProfile.createOne","ProviderProfile.createMany","ProviderProfile.createManyAndReturn","ProviderProfile.updateOne","ProviderProfile.updateMany","ProviderProfile.updateManyAndReturn","ProviderProfile.upsertOne","ProviderProfile.deleteOne","ProviderProfile.deleteMany","ProviderProfile.groupBy","ProviderProfile.aggregate","Review.findUnique","Review.findUniqueOrThrow","Review.findFirst","Review.findFirstOrThrow","Review.findMany","Review.createOne","Review.createMany","Review.createManyAndReturn","Review.updateOne","Review.updateMany","Review.updateManyAndReturn","Review.upsertOne","Review.deleteOne","Review.deleteMany","Review.groupBy","Review.aggregate","AND","OR","NOT","id","customerId","mealId","parentId","rating","ReviewStatus","status","comment","createdAt","updatedAt","equals","in","notIn","lt","lte","gt","gte","not","contains","startsWith","endsWith","userId","restaurantName","address","description","image","every","some","none","stripeEventId","transactionId","paymentGatewayData","amount","PaymentStatus","orderId","string_contains","string_starts_with","string_ends_with","array_starts_with","array_ends_with","array_contains","price","quantity","providerId","first_name","last_name","OrderStatus","totalPrice","phone","paymentStatus","meals_name","isAvailable","DietaryPreference","dietaryPreference","category_name","deliverycharge","Cuisine","cuisine","MealsStatus","adminId","name","identifier","value","expiresAt","accountId","accessToken","refreshToken","idToken","accessTokenExpiresAt","refreshTokenExpiresAt","scope","password","token","ipAddress","userAgent","email","emailVerified","bgimage","Role","role","Status","isActive","is","isNot","connectOrCreate","upsert","createMany","set","disconnect","delete","connect","updateMany","deleteMany","increment","decrement","multiply","divide"]'),
+  graph: "pgZpsAEWBAAA_gIAIAUAAP8CACAIAACBAwAgDgAAzQIAIBEAAIIDACASAACAAwAgEwAAgwMAIMwBAAD6AgAwzQEAADwAEM4BAAD6AgAwzwEBAAAAAdUBAAD9AqACItcBQADLAgAh2AFAAMsCACHoAQEAygIAIf8BAQDKAgAhiwIBAMkCACGaAgEAAAABmwIgAPsCACGcAgEAygIAIZ4CAAD8Ap4CIqACIAD7AgAhAQAAAAEAIBEDAADOAgAgzAEAAJ0DADDNAQAAAwAQzgEAAJ0DADDPAQEAyQIAIdcBQADLAgAh2AFAAMsCACHkAQEAyQIAIfoBAQDJAgAhjwIBAMkCACGQAgEAygIAIZECAQDKAgAhkgIBAMoCACGTAkAAngMAIZQCQACeAwAhlQIBAMoCACGWAgEAygIAIQgDAACvBAAgkAIAAJ8DACCRAgAAnwMAIJICAACfAwAgkwIAAJ8DACCUAgAAnwMAIJUCAACfAwAglgIAAJ8DACARAwAAzgIAIMwBAACdAwAwzQEAAAMAEM4BAACdAwAwzwEBAAAAAdcBQADLAgAh2AFAAMsCACHkAQEAyQIAIfoBAQDJAgAhjwIBAMkCACGQAgEAygIAIZECAQDKAgAhkgIBAMoCACGTAkAAngMAIZQCQACeAwAhlQIBAMoCACGWAgEAygIAIQMAAAADACABAAAEADACAAAFACALAwAAzgIAIAYAAMwCACDMAQAAnAMAMM0BAAAHABDOAQAAnAMAMM8BAQDJAgAh1wFAAMsCACHYAUAAywIAIegBAQDJAgAhigIBAMkCACGLAgEAyQIAIQIDAACvBAAgBgAArQQAIAsDAADOAgAgBgAAzAIAIMwBAACcAwAwzQEAAAcAEM4BAACcAwAwzwEBAAAAAdcBQADLAgAh2AFAAMsCACHoAQEAyQIAIYoCAQDJAgAhiwIBAAAAAQMAAAAHACABAAAIADACAAAJACAWBQAAmwMAIAgAAJQDACALAACVAwAgDAAAgAMAIBEAAIIDACDMAQAAlwMAMM0BAAALABDOAQAAlwMAMM8BAQDJAgAh1QEAAJoDigIi1wFAAMsCACHYAUAAywIAIecBAQDKAgAh6AEBAMoCACH4AQIAjAMAIfoBAQDJAgAhgQIBAMkCACGCAiAA-wIAIYQCAACYA4QCIoUCAQDJAgAhhgICAIwDACGIAgAAmQOIAiIHBQAAyAUAIAgAAMAFACALAADGBQAgDAAAvwUAIBEAAMEFACDnAQAAnwMAIOgBAACfAwAgFgUAAJsDACAIAACUAwAgCwAAlQMAIAwAAIADACARAACCAwAgzAEAAJcDADDNAQAACwAQzgEAAJcDADDPAQEAAAAB1QEAAJoDigIi1wFAAMsCACHYAUAAywIAIecBAQDKAgAh6AEBAMoCACH4AQIAjAMAIfoBAQDJAgAhgQIBAMkCACGCAiAA-wIAIYQCAACYA4QCIoUCAQDJAgAhhgICAIwDACGIAgAAmQOIAiIDAAAACwAgAQAADAAwAgAADQAgAwAAAAsAIAEAAAwAMAIAAA0AIBMHAADOAgAgCAAAlAMAIAsAAJUDACAMAACWAwAgzAEAAJIDADDNAQAAEAAQzgEAAJIDADDPAQEAyQIAIdABAQDJAgAh1QEAAJMD_gEi1wFAAMsCACHYAUAAywIAIeYBAQDJAgAh-gEBAMkCACH7AQEAygIAIfwBAQDKAgAh_gECAIwDACH_AQEAygIAIYACAACIA_EBIgcHAACvBAAgCAAAwAUAIAsAAMYFACAMAADHBQAg-wEAAJ8DACD8AQAAnwMAIP8BAACfAwAgEwcAAM4CACAIAACUAwAgCwAAlQMAIAwAAJYDACDMAQAAkgMAMM0BAAAQABDOAQAAkgMAMM8BAQAAAAHQAQEAyQIAIdUBAACTA_4BItcBQADLAgAh2AFAAMsCACHmAQEAyQIAIfoBAQDJAgAh-wEBAMoCACH8AQEAygIAIf4BAgCMAwAh_wEBAMoCACGAAgAAiAPxASIDAAAAEAAgAQAAEQAwAgAAEgAgDAkAAIkDACAKAACKAwAgzAEAAJEDADDNAQAAFAAQzgEAAJEDADDPAQEAyQIAIdEBAQDJAgAh1wFAAMsCACHYAUAAywIAIfEBAQDJAgAh-AEIAIcDACH5AQIAjAMAIQIJAADDBQAgCgAAxAUAIAwJAACJAwAgCgAAigMAIMwBAACRAwAwzQEAABQAEM4BAACRAwAwzwEBAAAAAdEBAQDJAgAh1wFAAMsCACHYAUAAywIAIfEBAQDJAgAh-AEIAIcDACH5AQIAjAMAIQMAAAAUACABAAAVADACAAAWACAQAwAAzgIAIAkAAIkDACAKAACKAwAgzAEAAIUDADDNAQAAGAAQzgEAAIUDADDPAQEAyQIAIdEBAQDJAgAh1QEAAIgD8QEi1wFAAMsCACHkAQEAyQIAIewBAQDKAgAh7QEBAI8DACHuAQAAhgMAIO8BCACHAwAh8QEBAMkCACEBAAAAGAAgAQAAABQAIAEAAAALACABAAAAEAAgAwAAABQAIAEAABUAMAIAABYAIBAHAADOAgAgCQAAiQMAIA8AAI4DACAQAACCAwAgzAEAAIsDADDNAQAAHgAQzgEAAIsDADDPAQEAyQIAIdABAQDJAgAh0QEBAMkCACHSAQEAygIAIdMBAgCMAwAh1QEAAI0D1QEi1gEBAMkCACHXAUAAywIAIdgBQADLAgAhBQcAAK8EACAJAADDBQAgDwAAxQUAIBAAAMEFACDSAQAAnwMAIBAHAADOAgAgCQAAiQMAIA8AAI4DACAQAACCAwAgzAEAAIsDADDNAQAAHgAQzgEAAIsDADDPAQEAAAAB0AEBAMkCACHRAQEAyQIAIdIBAQDKAgAh0wECAIwDACHVAQAAjQPVASLWAQEAyQIAIdcBQADLAgAh2AFAAMsCACEDAAAAHgAgAQAAHwAwAgAAIAAgAQAAAB4AIAMAAAAeACABAAAfADACAAAgACABAAAAHgAgBgMAAK8EACAJAADDBQAgCgAAxAUAIOwBAACfAwAg7QEAAJ8DACDuAQAAnwMAIBADAADOAgAgCQAAiQMAIAoAAIoDACDMAQAAhQMAMM0BAAAYABDOAQAAhQMAMM8BAQAAAAHRAQEAyQIAIdUBAACIA_EBItcBQADLAgAh5AEBAMkCACHsAQEAAAAB7QEBAAAAAe4BAACGAwAg7wEIAIcDACHxAQEAAAABAwAAABgAIAEAACUAMAIAACYAIAEAAAAUACABAAAAHgAgAQAAABgAIAEAAAALACADAAAAGAAgAQAAJQAwAgAAJgAgAwAAABAAIAEAABEAMAIAABIAIA4DAADOAgAgBgAAzAIAIA4AAM0CACDMAQAAyAIAMM0BAAAuABDOAQAAyAIAMM8BAQDJAgAh1wFAAMsCACHYAUAAywIAIeQBAQDJAgAh5QEBAMkCACHmAQEAyQIAIecBAQDKAgAh6AEBAMoCACEBAAAALgAgAwAAAB4AIAEAAB8AMAIAACAAIAwDAADOAgAgzAEAAIQDADDNAQAAMQAQzgEAAIQDADDPAQEAyQIAIdcBQADLAgAh2AFAAMsCACHkAQEAyQIAIY4CQADLAgAhlwIBAMkCACGYAgEAygIAIZkCAQDKAgAhAwMAAK8EACCYAgAAnwMAIJkCAACfAwAgDAMAAM4CACDMAQAAhAMAMM0BAAAxABDOAQAAhAMAMM8BAQAAAAHXAUAAywIAIdgBQADLAgAh5AEBAMkCACGOAkAAywIAIZcCAQAAAAGYAgEAygIAIZkCAQDKAgAhAwAAADEAIAEAADIAMAIAADMAIAEAAAADACABAAAABwAgAQAAABgAIAEAAAAQACABAAAAHgAgAQAAADEAIAEAAAABACAWBAAA_gIAIAUAAP8CACAIAACBAwAgDgAAzQIAIBEAAIIDACASAACAAwAgEwAAgwMAIMwBAAD6AgAwzQEAADwAEM4BAAD6AgAwzwEBAMkCACHVAQAA_QKgAiLXAUAAywIAIdgBQADLAgAh6AEBAMoCACH_AQEAygIAIYsCAQDJAgAhmgIBAMkCACGbAiAA-wIAIZwCAQDKAgAhngIAAPwCngIioAIgAPsCACEKBAAAvQUAIAUAAL4FACAIAADABQAgDgAArgQAIBEAAMEFACASAAC_BQAgEwAAwgUAIOgBAACfAwAg_wEAAJ8DACCcAgAAnwMAIAMAAAA8ACABAAA9ADACAAABACADAAAAPAAgAQAAPQAwAgAAAQAgAwAAADwAIAEAAD0AMAIAAAEAIBMEAAC2BQAgBQAAtwUAIAgAALoFACAOAAC5BQAgEQAAuwUAIBIAALgFACATAAC8BQAgzwEBAAAAAdUBAAAAoAIC1wFAAAAAAdgBQAAAAAHoAQEAAAAB_wEBAAAAAYsCAQAAAAGaAgEAAAABmwIgAAAAAZwCAQAAAAGeAgAAAJ4CAqACIAAAAAEBGQAAQQAgDM8BAQAAAAHVAQAAAKACAtcBQAAAAAHYAUAAAAAB6AEBAAAAAf8BAQAAAAGLAgEAAAABmgIBAAAAAZsCIAAAAAGcAgEAAAABngIAAACeAgKgAiAAAAABARkAAEMAMAEZAABDADATBAAA6wQAIAUAAOwEACAIAADvBAAgDgAA7gQAIBEAAPAEACASAADtBAAgEwAA8QQAIM8BAQClAwAh1QEAAOoEoAIi1wFAAKgDACHYAUAAqAMAIegBAQCpAwAh_wEBAKkDACGLAgEApQMAIZoCAQClAwAhmwIgAPoDACGcAgEAqQMAIZ4CAADpBJ4CIqACIAD6AwAhAgAAAAEAIBkAAEYAIAzPAQEApQMAIdUBAADqBKACItcBQACoAwAh2AFAAKgDACHoAQEAqQMAIf8BAQCpAwAhiwIBAKUDACGaAgEApQMAIZsCIAD6AwAhnAIBAKkDACGeAgAA6QSeAiKgAiAA-gMAIQIAAAA8ACAZAABIACACAAAAPAAgGQAASAAgAwAAAAEAICAAAEEAICEAAEYAIAEAAAABACABAAAAPAAgBg0AAOYEACAmAADoBAAgJwAA5wQAIOgBAACfAwAg_wEAAJ8DACCcAgAAnwMAIA_MAQAA8wIAMM0BAABPABDOAQAA8wIAMM8BAQC2AgAh1QEAAPUCoAIi1wFAALoCACHYAUAAugIAIegBAQC3AgAh_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-ACAgAACGAQAgIQAAiwEAIAEAAAB-ACABAAAAgQEAIAMNAADYBAAgJgAA2gQAICcAANkEACAJzAEAAOwCADDNAQAAlAEAEM4BAADsAgAwzwEBALYCACHXAUAAugIAIdgBQAC6AgAhjAIBALYCACGNAgEAtgIAIY4CQAC6AgAhAwAAAIEBACABAACTAQAwJQAAlAEAIAMAAACBAQAgAQAAggEAMAIAAH4AIAEAAAAJACABAAAACQAgAwAAAAcAIAEAAAgAMAIAAAkAIAMAAAAHACABAAAIADACAAAJACADAAAABwAgAQAACAAwAgAACQAgCAMAANYEACAGAADXBAAgzwEBAAAAAdcBQAAAAAHYAUAAAAAB6AEBAAAAAYoCAQAAAAGLAgEAAAABARkAAJwBACAGzwEBAAAAAdcBQAAAAAHYAUAAAAAB6AEBAAAAAYoCAQAAAAGLAgEAAAABARkAAJ4BADABGQAAngEAMAgDAADLBAAgBgAAzAQAIM8BAQClAwAh1wFAAKgDACHYAUAAqAMAIegBAQClAwAhigIBAKUDACGLAgEApQMAIQIAAAAJACAZAAChAQAgBs8BAQClAwAh1wFAAKgDACHYAUAAqAMAIegBAQClAwAhigIBAKUDACGLAgEApQMAIQIAAAAHACAZAACjAQAgAgAAAAcAIBkAAKMBACADAAAACQAgIAAAnAEAICEAAKEBACABAAAACQAgAQAAAAcAIAMNAADIBAAgJgAAygQAICcAAMkEACAJzAEAAOsCADDNAQAAqgEAEM4BAADrAgAwzwEBALYCACHXAUAAugIAIdgBQAC6AgAh6AEBALYCACGKAgEAtgIAIYsCAQC2AgAhAwAAAAcAIAEAAKkBADAlAACqAQAgAwAAAAcAIAEAAAgAMAIAAAkAIAEAAAANACABAAAADQAgAwAAAAsAIAEAAAwAMAIAAA0AIAMAAAALACABAAAMADACAAANACADAAAACwAgAQAADAAwAgAADQAgEwUAAKYEACAIAADHBAAgCwAApwQAIAwAAKkEACARAACoBAAgzwEBAAAAAdUBAAAAigIC1wFAAAAAAdgBQAAAAAHnAQEAAAAB6AEBAAAAAfgBAgAAAAH6AQEAAAABgQIBAAAAAYICIAAAAAGEAgAAAIQCAoUCAQAAAAGGAgIAAAABiAIAAACIAgIBGQAAsgEAIA7PAQEAAAAB1QEAAACKAgLXAUAAAAAB2AFAAAAAAecBAQAAAAHoAQEAAAAB-AECAAAAAfoBAQAAAAGBAgEAAAABggIgAAAAAYQCAAAAhAIChQIBAAAAAYYCAgAAAAGIAgAAAIgCAgEZAAC0AQAwARkAALQBADATBQAA_wMAIAgAAMYEACALAACABAAgDAAAggQAIBEAAIEEACDPAQEApQMAIdUBAAD9A4oCItcBQACoAwAh2AFAAKgDACHnAQEAqQMAIegBAQCpAwAh-AECAKYDACH6AQEApQMAIYECAQClAwAhggIgAPoDACGEAgAA-wOEAiKFAgEApQMAIYYCAgCmAwAhiAIAAPwDiAIiAgAAAA0AIBkAALcBACAOzwEBAKUDACHVAQAA_QOKAiLXAUAAqAMAIdgBQACoAwAh5wEBAKkDACHoAQEAqQMAIfgBAgCmAwAh-gEBAKUDACGBAgEApQMAIYICIAD6AwAhhAIAAPsDhAIihQIBAKUDACGGAgIApgMAIYgCAAD8A4gCIgIAAAALACAZAAC5AQAgAgAAAAsAIBkAALkBACADAAAADQAgIAAAsgEAICEAALcBACABAAAADQAgAQAAAAsAIAcNAADBBAAgJgAAxAQAICcAAMMEACB4AADCBAAgeQAAxQQAIOcBAACfAwAg6AEAAJ8DACARzAEAAN4CADDNAQAAwAEAEM4BAADeAgAwzwEBALYCACHVAQAA4gKKAiLXAUAAugIAIdgBQAC6AgAh5wEBALcCACHoAQEAtwIAIfgBAgC4AgAh-gEBALYCACGBAgEAtgIAIYICIADfAgAhhAIAAOAChAIihQIBALYCACGGAgIAuAIAIYgCAADhAogCIgMAAAALACABAAC_AQAwJQAAwAEAIAMAAAALACABAAAMADACAAANACABAAAAEgAgAQAAABIAIAMAAAAQACABAAARADACAAASACADAAAAEAAgAQAAEQAwAgAAEgAgAwAAABAAIAEAABEAMAIAABIAIBAHAADtAwAgCAAAwAQAIAsAAO4DACAMAADvAwAgzwEBAAAAAdABAQAAAAHVAQAAAP4BAtcBQAAAAAHYAUAAAAAB5gEBAAAAAfoBAQAAAAH7AQEAAAAB_AEBAAAAAf4BAgAAAAH_AQEAAAABgAIAAADxAQIBGQAAyAEAIAzPAQEAAAAB0AEBAAAAAdUBAAAA_gEC1wFAAAAAAdgBQAAAAAHmAQEAAAAB-gEBAAAAAfsBAQAAAAH8AQEAAAAB_gECAAAAAf8BAQAAAAGAAgAAAPEBAgEZAADKAQAwARkAAMoBADAQBwAA0QMAIAgAAL8EACALAADSAwAgDAAA0wMAIM8BAQClAwAh0AEBAKUDACHVAQAAzgP-ASLXAUAAqAMAIdgBQACoAwAh5gEBAKUDACH6AQEApQMAIfsBAQCpAwAh_AEBAKkDACH-AQIApgMAIf8BAQCpAwAhgAIAAM8D8QEiAgAAABIAIBkAAM0BACAMzwEBAKUDACHQAQEApQMAIdUBAADOA_4BItcBQACoAwAh2AFAAKgDACHmAQEApQMAIfoBAQClAwAh-wEBAKkDACH8AQEAqQMAIf4BAgCmAwAh_wEBAKkDACGAAgAAzwPxASICAAAAEAAgGQAAzwEAIAIAAAAQACAZAADPAQAgAwAAABIAICAAAMgBACAhAADNAQAgAQAAABIAIAEAAAAQACAIDQAAugQAICYAAL0EACAnAAC8BAAgeAAAuwQAIHkAAL4EACD7AQAAnwMAIPwBAACfAwAg_wEAAJ8DACAPzAEAANoCADDNAQAA1gEAEM4BAADaAgAwzwEBALYCACHQAQEAtgIAIdUBAADbAv4BItcBQAC6AgAh2AFAALoCACHmAQEAtgIAIfoBAQC2AgAh-wEBALcCACH8AQEAtwIAIf4BAgC4AgAh_wEBALcCACGAAgAA0wLxASIDAAAAEAAgAQAA1QEAMCUAANYBACADAAAAEAAgAQAAEQAwAgAAEgAgAQAAABYAIAEAAAAWACADAAAAFAAgAQAAFQAwAgAAFgAgAwAAABQAIAEAABUAMAIAABYAIAMAAAAUACABAAAVADACAAAWACAJCQAA6wMAIAoAAKQEACDPAQEAAAAB0QEBAAAAAdcBQAAAAAHYAUAAAAAB8QEBAAAAAfgBCAAAAAH5AQIAAAABARkAAN4BACAHzwEBAAAAAdEBAQAAAAHXAUAAAAAB2AFAAAAAAfEBAQAAAAH4AQgAAAAB-QECAAAAAQEZAADgAQAwARkAAOABADAJCQAA6QMAIAoAAKIEACDPAQEApQMAIdEBAQClAwAh1wFAAKgDACHYAUAAqAMAIfEBAQClAwAh-AEIANkDACH5AQIApgMAIQIAAAAWACAZAADjAQAgB88BAQClAwAh0QEBAKUDACHXAUAAqAMAIdgBQACoAwAh8QEBAKUDACH4AQgA2QMAIfkBAgCmAwAhAgAAABQAIBkAAOUBACACAAAAFAAgGQAA5QEAIAMAAAAWACAgAADeAQAgIQAA4wEAIAEAAAAWACABAAAAFAAgBQ0AALUEACAmAAC4BAAgJwAAtwQAIHgAALYEACB5AAC5BAAgCswBAADZAgAwzQEAAOwBABDOAQAA2QIAMM8BAQC2AgAh0QEBALYCACHXAUAAugIAIdgBQAC6AgAh8QEBALYCACH4AQgA0gIAIfkBAgC4AgAhAwAAABQAIAEAAOsBADAlAADsAQAgAwAAABQAIAEAABUAMAIAABYAIAEAAAAmACABAAAAJgAgAwAAABgAIAEAACUAMAIAACYAIAMAAAAYACABAAAlADACAAAmACADAAAAGAAgAQAAJQAwAgAAJgAgDQMAANwDACAJAADdAwAgCgAAkAQAIM8BAQAAAAHRAQEAAAAB1QEAAADxAQLXAUAAAAAB5AEBAAAAAewBAQAAAAHtAQEAAAAB7gGAAAAAAe8BCAAAAAHxAQEAAAABARkAAPQBACAKzwEBAAAAAdEBAQAAAAHVAQAAAPEBAtcBQAAAAAHkAQEAAAAB7AEBAAAAAe0BAQAAAAHuAYAAAAAB7wEIAAAAAfEBAQAAAAEBGQAA9gEAMAEZAAD2AQAwDQMAANoDACAJAADbAwAgCgAAjgQAIM8BAQClAwAh0QEBAKUDACHVAQAAzwPxASLXAUAAqAMAIeQBAQClAwAh7AEBAKkDACHtAQEAqQMAIe4BgAAAAAHvAQgA2QMAIfEBAQClAwAhAgAAACYAIBkAAPkBACAKzwEBAKUDACHRAQEApQMAIdUBAADPA_EBItcBQACoAwAh5AEBAKUDACHsAQEAqQMAIe0BAQCpAwAh7gGAAAAAAe8BCADZAwAh8QEBAKUDACECAAAAGAAgGQAA-wEAIAIAAAAYACAZAAD7AQAgAwAAACYAICAAAPQBACAhAAD5AQAgAQAAACYAIAEAAAAYACAIDQAAsAQAICYAALMEACAnAACyBAAgeAAAsQQAIHkAALQEACDsAQAAnwMAIO0BAACfAwAg7gEAAJ8DACANzAEAAM8CADDNAQAAggIAEM4BAADPAgAwzwEBALYCACHRAQEAtgIAIdUBAADTAvEBItcBQAC6AgAh5AEBALYCACHsAQEAtwIAIe0BAQDQAgAh7gEAANECACDvAQgA0gIAIfEBAQC2AgAhAwAAABgAIAEAAIECADAlAACCAgAgAwAAABgAIAEAACUAMAIAACYAIA4DAADOAgAgBgAAzAIAIA4AAM0CACDMAQAAyAIAMM0BAAAuABDOAQAAyAIAMM8BAQAAAAHXAUAAywIAIdgBQADLAgAh5AEBAAAAAeUBAQAAAAHmAQEAyQIAIecBAQDKAgAh6AEBAMoCACEBAAAAhQIAIAEAAACFAgAgBQMAAK8EACAGAACtBAAgDgAArgQAIOcBAACfAwAg6AEAAJ8DACADAAAALgAgAQAAiAIAMAIAAIUCACADAAAALgAgAQAAiAIAMAIAAIUCACADAAAALgAgAQAAiAIAMAIAAIUCACALAwAArAQAIAYAAKoEACAOAACrBAAgzwEBAAAAAdcBQAAAAAHYAUAAAAAB5AEBAAAAAeUBAQAAAAHmAQEAAAAB5wEBAAAAAegBAQAAAAEBGQAAjAIAIAjPAQEAAAAB1wFAAAAAAdgBQAAAAAHkAQEAAAAB5QEBAAAAAeYBAQAAAAHnAQEAAAAB6AEBAAAAAQEZAACOAgAwARkAAI4CADALAwAAwwMAIAYAAMEDACAOAADCAwAgzwEBAKUDACHXAUAAqAMAIdgBQACoAwAh5AEBAKUDACHlAQEApQMAIeYBAQClAwAh5wEBAKkDACHoAQEAqQMAIQIAAACFAgAgGQAAkQIAIAjPAQEApQMAIdcBQACoAwAh2AFAAKgDACHkAQEApQMAIeUBAQClAwAh5gEBAKUDACHnAQEAqQMAIegBAQCpAwAhAgAAAC4AIBkAAJMCACACAAAALgAgGQAAkwIAIAMAAACFAgAgIAAAjAIAICEAAJECACABAAAAhQIAIAEAAAAuACAFDQAAvgMAICYAAMADACAnAAC_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_AgAgJwAAvwIAINkBAAAA1QEC2gEAAADVAQjbAQAAANUBCOABAAC-AtUBIgTZAQAAANUBAtoBAAAA1QEI2wEAAADVAQjgAQAAvwLVASINDQAAvAIAICYAALwCACAnAAC8AgAgeAAAwQIAIHkAALwCACDZAQIAAAAB2gECAAAABNsBAgAAAATcAQIAAAAB3QECAAAAAd4BAgAAAAHfAQIAAAAB4AECAMACACEI2QEIAAAAAdoBCAAAAATbAQgAAAAE3AEIAAAAAd0BCAAAAAHeAQgAAAAB3wEIAAAAAeABCADBAgAhDg0AAMMCACAmAADEAgAgJwAAxAIAINkBAQAAAAHaAQEAAAAF2wEBAAAABdwBAQAAAAHdAQEAAAAB3gEBAAAAAd8BAQAAAAHgAQEAwgIAIeEBAQAAAAHiAQEAAAAB4wEBAAAAAQjZAQIAAAAB2gECAAAABdsBAgAAAAXcAQIAAAAB3QECAAAAAd4BAgAAAAHfAQIAAAAB4AECAMMCACEL2QEBAAAAAdoBAQAAAAXbAQEAAAAF3AEBAAAAAd0BAQAAAAHeAQEAAAAB3wEBAAAAAeABAQDEAgAh4QEBAAAAAeIBAQAAAAHjAQEAAAABDg0AALwCACAmAADGAgAgJwAAxgIAINkBAQAAAAHaAQEAAAAE2wEBAAAABNwBAQAAAAHdAQEAAAAB3gEBAAAAAd8BAQAAAAHgAQEAxQIAIeEBAQAAAAHiAQEAAAAB4wEBAAAAAQvZAQEAAAAB2gEBAAAABNsBAQAAAATcAQEAAAAB3QEBAAAAAd4BAQAAAAHfAQEAAAAB4AEBAMYCACHhAQEAAAAB4gEBAAAAAeMBAQAAAAELzAEAAMcCADDNAQAAmgIAEM4BAADHAgAwzwEBALYCACHXAUAAugIAIdgBQAC6AgAh5AEBALYCACHlAQEAtgIAIeYBAQC2AgAh5wEBALcCACHoAQEAtwIAIQ4DAADOAgAgBgAAzAIAIA4AAM0CACDMAQAAyAIAMM0BAAAuABDOAQAAyAIAMM8BAQDJAgAh1wFAAMsCACHYAUAAywIAIeQBAQDJAgAh5QEBAMkCACHmAQEAyQIAIecBAQDKAgAh6AEBAMoCACEL2QEBAAAAAdoBAQAAAATbAQEAAAAE3AEBAAAAAd0BAQAAAAHeAQEAAAAB3wEBAAAAAeABAQDGAgAh4QEBAAAAAeIBAQAAAAHjAQEAAAABC9kBAQAAAAHaAQEAAAAF2wEBAAAABdwBAQAAAAHdAQEAAAAB3gEBAAAAAd8BAQAAAAHgAQEAxAIAIeEBAQAAAAHiAQEAAAAB4wEBAAAAAQjZAUAAAAAB2gFAAAAABNsBQAAAAATcAUAAAAAB3QFAAAAAAd4BQAAAAAHfAUAAAAAB4AFAAL0CACED6QEAAAsAIOoBAAALACDrAQAACwAgA-kBAAAQACDqAQAAEAAg6wEAABAAIBgEAAD-AgAgBQAA_wIAIAgAAIEDACAOAADNAgAgEQAAggMAIBIAAIADACATAACDAwAgzAEAAPoCADDNAQAAPAAQzgEAAPoCADDPAQEAyQIAIdUBAAD9AqACItcBQADLAgAh2AFAAMsCACHoAQEAygIAIf8BAQDKAgAhiwIBAMkCACGaAgEAyQIAIZsCIAD7AgAhnAIBAMoCACGeAgAA_AKeAiKgAiAA-wIAIaECAAA8ACCiAgAAPAAgDcwBAADPAgAwzQEAAIICABDOAQAAzwIAMM8BAQC2AgAh0QEBALYCACHVAQAA0wLxASLXAUAAugIAIeQBAQC2AgAh7AEBALcCACHtAQEA0AIAIe4BAADRAgAg7wEIANICACHxAQEAtgIAIQsNAADDAgAgJgAAxAIAICcAAMQCACDZAQEAAAAB2gEBAAAABdsBAQAAAAXcAQEAAAAB3QEBAAAAAd4BAQAAAAHfAQEAAAAB4AEBANgCACEPDQAAwwIAICYAANcCACAnAADXAgAg2QGAAAAAAdwBgAAAAAHdAYAAAAAB3gGAAAAAAd8BgAAAAAHgAYAAAAAB8gEBAAAAAfMBAQAAAAH0AQEAAAAB9QGAAAAAAfYBgAAAAAH3AYAAAAABDQ0AALwCACAmAADBAgAgJwAAwQIAIHgAAMECACB5AADBAgAg2QEIAAAAAdoBCAAAAATbAQgAAAAE3AEIAAAAAd0BCAAAAAHeAQgAAAAB3wEIAAAAAeABCADWAgAhBw0AALwCACAmAADVAgAgJwAA1QIAINkBAAAA8QEC2gEAAADxAQjbAQAAAPEBCOABAADUAvEBIgcNAAC8AgAgJgAA1QIAICcAANUCACDZAQAAAPEBAtoBAAAA8QEI2wEAAADxAQjgAQAA1ALxASIE2QEAAADxAQLaAQAAAPEBCNsBAAAA8QEI4AEAANUC8QEiDQ0AALwCACAmAADBAgAgJwAAwQIAIHgAAMECACB5AADBAgAg2QEIAAAAAdoBCAAAAATbAQgAAAAE3AEIAAAAAd0BCAAAAAHeAQgAAAAB3wEIAAAAAeABCADWAgAhDNkBgAAAAAHcAYAAAAAB3QGAAAAAAd4BgAAAAAHfAYAAAAAB4AGAAAAAAfIBAQAAAAHzAQEAAAAB9AEBAAAAAfUBgAAAAAH2AYAAAAAB9wGAAAAAAQsNAADDAgAgJgAAxAIAICcAAMQCACDZAQEAAAAB2gEBAAAABdsBAQAAAAXcAQEAAAAB3QEBAAAAAd4BAQAAAAHfAQEAAAAB4AEBANgCACEKzAEAANkCADDNAQAA7AEAEM4BAADZAgAwzwEBALYCACHRAQEAtgIAIdcBQAC6AgAh2AFAALoCACHxAQEAtgIAIfgBCADSAgAh-QECALgCACEPzAEAANoCADDNAQAA1gEAEM4BAADaAgAwzwEBALYCACHQAQEAtgIAIdUBAADbAv4BItcBQAC6AgAh2AFAALoCACHmAQEAtgIAIfoBAQC2AgAh-wEBALcCACH8AQEAtwIAIf4BAgC4AgAh_wEBALcCACGAAgAA0wLxASIHDQAAvAIAICYAAN0CACAnAADdAgAg2QEAAAD-AQLaAQAAAP4BCNsBAAAA_gEI4AEAANwC_gEiBw0AALwCACAmAADdAgAgJwAA3QIAINkBAAAA_gEC2gEAAAD-AQjbAQAAAP4BCOABAADcAv4BIgTZAQAAAP4BAtoBAAAA_gEI2wEAAAD-AQjgAQAA3QL-ASIRzAEAAN4CADDNAQAAwAEAEM4BAADeAgAwzwEBALYCACHVAQAA4gKKAiLXAUAAugIAIdgBQAC6AgAh5wEBALcCACHoAQEAtwIAIfgBAgC4AgAh-gEBALYCACGBAgEAtgIAIYICIADfAgAhhAIAAOAChAIihQIBALYCACGGAgIAuAIAIYgCAADhAogCIgUNAAC8AgAgJgAA6gIAICcAAOoCACDZASAAAAAB4AEgAOkCACEHDQAAvAIAICYAAOgCACAnAADoAgAg2QEAAACEAgLaAQAAAIQCCNsBAAAAhAII4AEAAOcChAIiBw0AALwCACAmAADmAgAgJwAA5gIAINkBAAAAiAIC2gEAAACIAgjbAQAAAIgCCOABAADlAogCIgcNAAC8AgAgJgAA5AIAICcAAOQCACDZAQAAAIoCAtoBAAAAigII2wEAAACKAgjgAQAA4wKKAiIHDQAAvAIAICYAAOQCACAnAADkAgAg2QEAAACKAgLaAQAAAIoCCNsBAAAAigII4AEAAOMCigIiBNkBAAAAigIC2gEAAACKAgjbAQAAAIoCCOABAADkAooCIgcNAAC8AgAgJgAA5gIAICcAAOYCACDZAQAAAIgCAtoBAAAAiAII2wEAAACIAgjgAQAA5QKIAiIE2QEAAACIAgLaAQAAAIgCCNsBAAAAiAII4AEAAOYCiAIiBw0AALwCACAmAADoAgAgJwAA6AIAINkBAAAAhAIC2gEAAACEAgjbAQAAAIQCCOABAADnAoQCIgTZAQAAAIQCAtoBAAAAhAII2wEAAACEAgjgAQAA6AKEAiIFDQAAvAIAICYAAOoCACAnAADqAgAg2QEgAAAAAeABIADpAgAhAtkBIAAAAAHgASAA6gIAIQnMAQAA6wIAMM0BAACqAQAQzgEAAOsCADDPAQEAtgIAIdcBQAC6AgAh2AFAALoCACHoAQEAtgIAIYoCAQC2AgAhiwIBALYCACEJzAEAAOwCADDNAQAAlAEAEM4BAADsAgAwzwEBALYCACHXAUAAugIAIdgBQAC6AgAhjAIBALYCACGNAgEAtgIAIY4CQAC6AgAhCcwBAADtAgAwzQEAAIEBABDOAQAA7QIAMM8BAQDJAgAh1wFAAMsCACHYAUAAywIAIYwCAQDJAgAhjQIBAMkCACGOAkAAywIAIRDMAQAA7gIAMM0BAAB7ABDOAQAA7gIAMM8BAQC2AgAh1wFAALoCACHYAUAAugIAIeQBAQC2AgAh-gEBALYCACGPAgEAtgIAIZACAQC3AgAhkQIBALcCACGSAgEAtwIAIZMCQADvAgAhlAJAAO8CACGVAgEAtwIAIZYCAQC3AgAhCw0AAMMCACAmAADxAgAgJwAA8QIAINkBQAAAAAHaAUAAAAAF2wFAAAAABdwBQAAAAAHdAUAAAAAB3gFAAAAAAd8BQAAAAAHgAUAA8AIAIQsNAADDAgAgJgAA8QIAICcAAPECACDZAUAAAAAB2gFAAAAABdsBQAAAAAXcAUAAAAAB3QFAAAAAAd4BQAAAAAHfAUAAAAAB4AFAAPACACEI2QFAAAAAAdoBQAAAAAXbAUAAAAAF3AFAAAAAAd0BQAAAAAHeAUAAAAAB3wFAAAAAAeABQADxAgAhC8wBAADyAgAwzQEAAGUAEM4BAADyAgAwzwEBALYCACHXAUAAugIAIdgBQAC6AgAh5AEBALYCACGOAkAAugIAIZcCAQC2AgAhmAIBALcCACGZAgEAtwIAIQ_MAQAA8wIAMM0BAABPABDOAQAA8wIAMM8BAQC2AgAh1QEAAPUCoAIi1wFAALoCACHYAUAAugIAIegBAQC3AgAh_wEBALcCACGLAgEAtgIAIZoCAQC2AgAhmwIgAN8CACGcAgEAtwIAIZ4CAAD0Ap4CIqACIADfAgAhBw0AALwCACAmAAD5AgAgJwAA-QIAINkBAAAAngIC2gEAAACeAgjbAQAAAJ4CCOABAAD4Ap4CIgcNAAC8AgAgJgAA9wIAICcAAPcCACDZAQAAAKACAtoBAAAAoAII2wEAAACgAgjgAQAA9gKgAiIHDQAAvAIAICYAAPcCACAnAAD3AgAg2QEAAACgAgLaAQAAAKACCNsBAAAAoAII4AEAAPYCoAIiBNkBAAAAoAIC2gEAAACgAgjbAQAAAKACCOABAAD3AqACIgcNAAC8AgAgJgAA-QIAICcAAPkCACDZAQAAAJ4CAtoBAAAAngII2wEAAACeAgjgAQAA-AKeAiIE2QEAAACeAgLaAQAAAJ4CCNsBAAAAngII4AEAAPkCngIiFgQAAP4CACAFAAD_AgAgCAAAgQMAIA4AAM0CACARAACCAwAgEgAAgAMAIBMAAIMDACDMAQAA-gIAMM0BAAA8ABDOAQAA-gIAMM8BAQDJAgAh1QEAAP0CoAIi1wFAAMsCACHYAUAAywIAIegBAQDKAgAh_wEBAMoCACGLAgEAyQIAIZoCAQDJAgAhmwIgAPsCACGcAgEAygIAIZ4CAAD8Ap4CIqACIAD7AgAhAtkBIAAAAAHgASAA6gIAIQTZAQAAAJ4CAtoBAAAAngII2wEAAACeAgjgAQAA-QKeAiIE2QEAAACgAgLaAQAAAKACCNsBAAAAoAII4AEAAPcCoAIiA-kBAAADACDqAQAAAwAg6wEAAAMAIAPpAQAABwAg6gEAAAcAIOsBAAAHACAD6QEAABgAIOoBAAAYACDrAQAAGAAgEAMAAM4CACAGAADMAgAgDgAAzQIAIMwBAADIAgAwzQEAAC4AEM4BAADIAgAwzwEBAMkCACHXAUAAywIAIdgBQADLAgAh5AEBAMkCACHlAQEAyQIAIeYBAQDJAgAh5wEBAMoCACHoAQEAygIAIaECAAAuACCiAgAALgAgA-kBAAAeACDqAQAAHgAg6wEAAB4AIAPpAQAAMQAg6gEAADEAIOsBAAAxACAMAwAAzgIAIMwBAACEAwAwzQEAADEAEM4BAACEAwAwzwEBAMkCACHXAUAAywIAIdgBQADLAgAh5AEBAMkCACGOAkAAywIAIZcCAQDJAgAhmAIBAMoCACGZAgEAygIAIRADAADOAgAgCQAAiQMAIAoAAIoDACDMAQAAhQMAMM0BAAAYABDOAQAAhQMAMM8BAQDJAgAh0QEBAMkCACHVAQAAiAPxASLXAUAAywIAIeQBAQDJAgAh7AEBAMoCACHtAQEAjwMAIe4BAACGAwAg7wEIAIcDACHxAQEAyQIAIQzZAYAAAAAB3AGAAAAAAd0BgAAAAAHeAYAAAAAB3wGAAAAAAeABgAAAAAHyAQEAAAAB8wEBAAAAAfQBAQAAAAH1AYAAAAAB9gGAAAAAAfcBgAAAAAEI2QEIAAAAAdoBCAAAAATbAQgAAAAE3AEIAAAAAd0BCAAAAAHeAQgAAAAB3wEIAAAAAeABCADBAgAhBNkBAAAA8QEC2gEAAADxAQjbAQAAAPEBCOABAADVAvEBIhgFAACbAwAgCAAAlAMAIAsAAJUDACAMAACAAwAgEQAAggMAIMwBAACXAwAwzQEAAAsAEM4BAACXAwAwzwEBAMkCACHVAQAAmgOKAiLXAUAAywIAIdgBQADLAgAh5wEBAMoCACHoAQEAygIAIfgBAgCMAwAh-gEBAMkCACGBAgEAyQIAIYICIAD7AgAhhAIAAJgDhAIihQIBAMkCACGGAgIAjAMAIYgCAACZA4gCIqECAAALACCiAgAACwAgFQcAAM4CACAIAACUAwAgCwAAlQMAIAwAAJYDACDMAQAAkgMAMM0BAAAQABDOAQAAkgMAMM8BAQDJAgAh0AEBAMkCACHVAQAAkwP-ASLXAUAAywIAIdgBQADLAgAh5gEBAMkCACH6AQEAyQIAIfsBAQDKAgAh_AEBAMoCACH-AQIAjAMAIf8BAQDKAgAhgAIAAIgD8QEioQIAABAAIKICAAAQACAQBwAAzgIAIAkAAIkDACAPAACOAwAgEAAAggMAIMwBAACLAwAwzQEAAB4AEM4BAACLAwAwzwEBAMkCACHQAQEAyQIAIdEBAQDJAgAh0gEBAMoCACHTAQIAjAMAIdUBAACNA9UBItYBAQDJAgAh1wFAAMsCACHYAUAAywIAIQjZAQIAAAAB2gECAAAABNsBAgAAAATcAQIAAAAB3QECAAAAAd4BAgAAAAHfAQIAAAAB4AECALwCACEE2QEAAADVAQLaAQAAANUBCNsBAAAA1QEI4AEAAL8C1QEiEgcAAM4CACAJAACJAwAgDwAAjgMAIBAAAIIDACDMAQAAiwMAMM0BAAAeABDOAQAAiwMAMM8BAQDJAgAh0AEBAMkCACHRAQEAyQIAIdIBAQDKAgAh0wECAIwDACHVAQAAjQPVASLWAQEAyQIAIdcBQADLAgAh2AFAAMsCACGhAgAAHgAgogIAAB4AIAjZAQEAAAAB2gEBAAAABdsBAQAAAAXcAQEAAAAB3QEBAAAAAd4BAQAAAAHfAQEAAAAB4AEBAJADACEI2QEBAAAAAdoBAQAAAAXbAQEAAAAF3AEBAAAAAd0BAQAAAAHeAQEAAAAB3wEBAAAAAeABAQCQAwAhDAkAAIkDACAKAACKAwAgzAEAAJEDADDNAQAAFAAQzgEAAJEDADDPAQEAyQIAIdEBAQDJAgAh1wFAAMsCACHYAUAAywIAIfEBAQDJAgAh-AEIAIcDACH5AQIAjAMAIRMHAADOAgAgCAAAlAMAIAsAAJUDACAMAACWAwAgzAEAAJIDADDNAQAAEAAQzgEAAJIDADDPAQEAyQIAIdABAQDJAgAh1QEAAJMD_gEi1wFAAMsCACHYAUAAywIAIeYBAQDJAgAh-gEBAMkCACH7AQEAygIAIfwBAQDKAgAh_gECAIwDACH_AQEAygIAIYACAACIA_EBIgTZAQAAAP4BAtoBAAAA_gEI2wEAAAD-AQjgAQAA3QL-ASIQAwAAzgIAIAYAAMwCACAOAADNAgAgzAEAAMgCADDNAQAALgAQzgEAAMgCADDPAQEAyQIAIdcBQADLAgAh2AFAAMsCACHkAQEAyQIAIeUBAQDJAgAh5gEBAMkCACHnAQEAygIAIegBAQDKAgAhoQIAAC4AIKICAAAuACAD6QEAABQAIOoBAAAUACDrAQAAFAAgEgMAAM4CACAJAACJAwAgCgAAigMAIMwBAACFAwAwzQEAABgAEM4BAACFAwAwzwEBAMkCACHRAQEAyQIAIdUBAACIA_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_gEC1wFAAAAAAdgBQAAAAAHmAQEAAAAB-wEBAAAAAfwBAQAAAAH-AQIAAAAB_wEBAAAAAYACAAAA8QECAgAAABIAICAAAOwDACADAAAAEgAgIAAA7AMAICEAANADACABGQAAkwYAMBMHAADOAgAgCAAAlAMAIAsAAJUDACAMAACWAwAgzAEAAJIDADDNAQAAEAAQzgEAAJIDADDPAQEAAAAB0AEBAMkCACHVAQAAkwP-ASLXAUAAywIAIdgBQADLAgAh5gEBAMkCACH6AQEAyQIAIfsBAQDKAgAh_AEBAMoCACH-AQIAjAMAIf8BAQDKAgAhgAIAAIgD8QEiAgAAABIAIBkAANADACACAAAAzAMAIBkAAM0DACAPzAEAAMsDADDNAQAAzAMAEM4BAADLAwAwzwEBAMkCACHQAQEAyQIAIdUBAACTA_4BItcBQADLAgAh2AFAAMsCACHmAQEAyQIAIfoBAQDJAgAh-wEBAMoCACH8AQEAygIAIf4BAgCMAwAh_wEBAMoCACGAAgAAiAPxASIPzAEAAMsDADDNAQAAzAMAEM4BAADLAwAwzwEBAMkCACHQAQEAyQIAIdUBAACTA_4BItcBQADLAgAh2AFAAMsCACHmAQEAyQIAIfoBAQDJAgAh-wEBAMoCACH8AQEAygIAIf4BAgCMAwAh_wEBAMoCACGAAgAAiAPxASILzwEBAKUDACHQAQEApQMAIdUBAADOA_4BItcBQACoAwAh2AFAAKgDACHmAQEApQMAIfsBAQCpAwAh_AEBAKkDACH-AQIApgMAIf8BAQCpAwAhgAIAAM8D8QEiAaYCAAAA_gECAaYCAAAA8QECDgcAANEDACALAADSAwAgDAAA0wMAIM8BAQClAwAh0AEBAKUDACHVAQAAzgP-ASLXAUAAqAMAIdgBQACoAwAh5gEBAKUDACH7AQEAqQMAIfwBAQCpAwAh_gECAKYDACH_AQEAqQMAIYACAADPA_EBIgUgAAD-BQAgIQAAkQYAIKMCAAD_BQAgpAIAAJAGACCpAgAAAQAgCyAAAN4DADAhAADjAwAwowIAAN8DADCkAgAA4AMAMKUCAADhAwAgpgIAAOIDADCnAgAA4gMAMKgCAADiAwAwqQIAAOIDADCqAgAA5AMAMKsCAADlAwAwByAAANQDACAhAADXAwAgowIAANUDACCkAgAA1gMAIKcCAAAYACCoAgAAGAAgqQIAACYAIAsDAADcAwAgCQAA3QMAIM8BAQAAAAHRAQEAAAAB1QEAAADxAQLXAUAAAAAB5AEBAAAAAewBAQAAAAHtAQEAAAAB7gGAAAAAAe8BCAAAAAECAAAAJgAgIAAA1AMAIAMAAAAYACAgAADUAwAgIQAA2AMAIA0AAAAYACADAADaAwAgCQAA2wMAIBkAANgDACDPAQEApQMAIdEBAQClAwAh1QEAAM8D8QEi1wFAAKgDACHkAQEApQMAIewBAQCpAwAh7QEBAKkDACHuAYAAAAAB7wEIANkDACELAwAA2gMAIAkAANsDACDPAQEApQMAIdEBAQClAwAh1QEAAM8D8QEi1wFAAKgDACHkAQEApQMAIewBAQCpAwAh7QEBAKkDACHuAYAAAAAB7wEIANkDACEFpgIIAAAAAawCCAAAAAGtAggAAAABrgIIAAAAAa8CCAAAAAEFIAAAiAYAICEAAI4GACCjAgAAiQYAIKQCAACNBgAgqQIAAAEAIAUgAACGBgAgIQAAiwYAIKMCAACHBgAgpAIAAIoGACCpAgAADQAgAyAAAIgGACCjAgAAiQYAIKkCAAABACADIAAAhgYAIKMCAACHBgAgqQIAAA0AIAcJAADrAwAgzwEBAAAAAdEBAQAAAAHXAUAAAAAB2AFAAAAAAfgBCAAAAAH5AQIAAAABAgAAABYAICAAAOoDACADAAAAFgAgIAAA6gMAICEAAOgDACABGQAAhQYAMAwJAACJAwAgCgAAigMAIMwBAACRAwAwzQEAABQAEM4BAACRAwAwzwEBAAAAAdEBAQDJAgAh1wFAAMsCACHYAUAAywIAIfEBAQDJAgAh-AEIAIcDACH5AQIAjAMAIQIAAAAWACAZAADoAwAgAgAAAOYDACAZAADnAwAgCswBAADlAwAwzQEAAOYDABDOAQAA5QMAMM8BAQDJAgAh0QEBAMkCACHXAUAAywIAIdgBQADLAgAh8QEBAMkCACH4AQgAhwMAIfkBAgCMAwAhCswBAADlAwAwzQEAAOYDABDOAQAA5QMAMM8BAQDJAgAh0QEBAMkCACHXAUAAywIAIdgBQADLAgAh8QEBAMkCACH4AQgAhwMAIfkBAgCMAwAhBs8BAQClAwAh0QEBAKUDACHXAUAAqAMAIdgBQACoAwAh-AEIANkDACH5AQIApgMAIQcJAADpAwAgzwEBAKUDACHRAQEApQMAIdcBQACoAwAh2AFAAKgDACH4AQgA2QMAIfkBAgCmAwAhBSAAAIAGACAhAACDBgAgowIAAIEGACCkAgAAggYAIKkCAAANACAHCQAA6wMAIM8BAQAAAAHRAQEAAAAB1wFAAAAAAdgBQAAAAAH4AQgAAAAB-QECAAAAAQMgAACABgAgowIAAIEGACCpAgAADQAgDgcAAO0DACALAADuAwAgDAAA7wMAIM8BAQAAAAHQAQEAAAAB1QEAAAD-AQLXAUAAAAAB2AFAAAAAAeYBAQAAAAH7AQEAAAAB_AEBAAAAAf4BAgAAAAH_AQEAAAABgAIAAADxAQIDIAAA_gUAIKMCAAD_BQAgqQIAAAEAIAQgAADeAwAwowIAAN8DADClAgAA4QMAIKkCAADiAwAwAyAAANQDACCjAgAA1QMAIKkCAAAmACARBQAApgQAIAsAAKcEACAMAACpBAAgEQAAqAQAIM8BAQAAAAHVAQAAAIoCAtcBQAAAAAHYAUAAAAAB5wEBAAAAAegBAQAAAAH4AQIAAAABgQIBAAAAAYICIAAAAAGEAgAAAIQCAoUCAQAAAAGGAgIAAAABiAIAAACIAgICAAAADQAgIAAApQQAIAMAAAANACAgAAClBAAgIQAA_gMAIAEZAAD9BQAwFgUAAJsDACAIAACUAwAgCwAAlQMAIAwAAIADACARAACCAwAgzAEAAJcDADDNAQAACwAQzgEAAJcDADDPAQEAAAAB1QEAAJoDigIi1wFAAMsCACHYAUAAywIAIecBAQDKAgAh6AEBAMoCACH4AQIAjAMAIfoBAQDJAgAhgQIBAMkCACGCAiAA-wIAIYQCAACYA4QCIoUCAQDJAgAhhgICAIwDACGIAgAAmQOIAiICAAAADQAgGQAA_gMAIAIAAAD4AwAgGQAA-QMAIBHMAQAA9wMAMM0BAAD4AwAQzgEAAPcDADDPAQEAyQIAIdUBAACaA4oCItcBQADLAgAh2AFAAMsCACHnAQEAygIAIegBAQDKAgAh-AECAIwDACH6AQEAyQIAIYECAQDJAgAhggIgAPsCACGEAgAAmAOEAiKFAgEAyQIAIYYCAgCMAwAhiAIAAJkDiAIiEcwBAAD3AwAwzQEAAPgDABDOAQAA9wMAMM8BAQDJAgAh1QEAAJoDigIi1wFAAMsCACHYAUAAywIAIecBAQDKAgAh6AEBAMoCACH4AQIAjAMAIfoBAQDJAgAhgQIBAMkCACGCAiAA-wIAIYQCAACYA4QCIoUCAQDJAgAhhgICAIwDACGIAgAAmQOIAiINzwEBAKUDACHVAQAA_QOKAiLXAUAAqAMAIdgBQACoAwAh5wEBAKkDACHoAQEAqQMAIfgBAgCmAwAhgQIBAKUDACGCAiAA-gMAIYQCAAD7A4QCIoUCAQClAwAhhgICAKYDACGIAgAA_AOIAiIBpgIgAAAAAQGmAgAAAIQCAgGmAgAAAIgCAgGmAgAAAIoCAhEFAAD_AwAgCwAAgAQAIAwAAIIEACARAACBBAAgzwEBAKUDACHVAQAA_QOKAiLXAUAAqAMAIdgBQACoAwAh5wEBAKkDACHoAQEAqQMAIfgBAgCmAwAhgQIBAKUDACGCAiAA-gMAIYQCAAD7A4QCIoUCAQClAwAhhgICAKYDACGIAgAA_AOIAiIFIAAA6wUAICEAAPsFACCjAgAA7AUAIKQCAAD6BQAgqQIAAAkAIAsgAACaBAAwIQAAngQAMKMCAACbBAAwpAIAAJwEADClAgAAnQQAIKYCAADiAwAwpwIAAOIDADCoAgAA4gMAMKkCAADiAwAwqgIAAJ8EADCrAgAA5QMAMAsgAACRBAAwIQAAlQQAMKMCAACSBAAwpAIAAJMEADClAgAAlAQAIKYCAACyAwAwpwIAALIDADCoAgAAsgMAMKkCAACyAwAwqgIAAJYEADCrAgAAtQMAMAsgAACDBAAwIQAAiAQAMKMCAACEBAAwpAIAAIUEADClAgAAhgQAIKYCAACHBAAwpwIAAIcEADCoAgAAhwQAMKkCAACHBAAwqgIAAIkEADCrAgAAigQAMAsDAADcAwAgCgAAkAQAIM8BAQAAAAHVAQAAAPEBAtcBQAAAAAHkAQEAAAAB7AEBAAAAAe0BAQAAAAHuAYAAAAAB7wEIAAAAAfEBAQAAAAECAAAAJgAgIAAAjwQAIAMAAAAmACAgAACPBAAgIQAAjQQAIAEZAAD5BQAwEAMAAM4CACAJAACJAwAgCgAAigMAIMwBAACFAwAwzQEAABgAEM4BAACFAwAwzwEBAAAAAdEBAQDJAgAh1QEAAIgD8QEi1wFAAMsCACHkAQEAyQIAIewBAQAAAAHtAQEAAAAB7gEAAIYDACDvAQgAhwMAIfEBAQAAAAECAAAAJgAgGQAAjQQAIAIAAACLBAAgGQAAjAQAIA3MAQAAigQAMM0BAACLBAAQzgEAAIoEADDPAQEAyQIAIdEBAQDJAgAh1QEAAIgD8QEi1wFAAMsCACHkAQEAyQIAIewBAQDKAgAh7QEBAI8DACHuAQAAhgMAIO8BCACHAwAh8QEBAMkCACENzAEAAIoEADDNAQAAiwQAEM4BAACKBAAwzwEBAMkCACHRAQEAyQIAIdUBAACIA_EBItcBQADLAgAh5AEBAMkCACHsAQEAygIAIe0BAQCPAwAh7gEAAIYDACDvAQgAhwMAIfEBAQDJAgAhCc8BAQClAwAh1QEAAM8D8QEi1wFAAKgDACHkAQEApQMAIewBAQCpAwAh7QEBAKkDACHuAYAAAAAB7wEIANkDACHxAQEApQMAIQsDAADaAwAgCgAAjgQAIM8BAQClAwAh1QEAAM8D8QEi1wFAAKgDACHkAQEApQMAIewBAQCpAwAh7QEBAKkDACHuAYAAAAAB7wEIANkDACHxAQEApQMAIQUgAAD0BQAgIQAA9wUAIKMCAAD1BQAgpAIAAPYFACCpAgAAEgAgCwMAANwDACAKAACQBAAgzwEBAAAAAdUBAAAA8QEC1wFAAAAAAeQBAQAAAAHsAQEAAAAB7QEBAAAAAe4BgAAAAAHvAQgAAAAB8QEBAAAAAQMgAAD0BQAgowIAAPUFACCpAgAAEgAgCwcAALoDACAPAAC9AwAgEAAAvAMAIM8BAQAAAAHQAQEAAAAB0gEBAAAAAdMBAgAAAAHVAQAAANUBAtYBAQAAAAHXAUAAAAAB2AFAAAAAAQIAAAAgACAgAACZBAAgAwAAACAAICAAAJkEACAhAACYBAAgARkAAPMFADACAAAAIAAgGQAAmAQAIAIAAAC2AwAgGQAAlwQAIAjPAQEApQMAIdABAQClAwAh0gEBAKkDACHTAQIApgMAIdUBAACnA9UBItYBAQClAwAh1wFAAKgDACHYAUAAqAMAIQsHAACqAwAgDwAArAMAIBAAAK0DACDPAQEApQMAIdABAQClAwAh0gEBAKkDACHTAQIApgMAIdUBAACnA9UBItYBAQClAwAh1wFAAKgDACHYAUAAqAMAIQsHAAC6AwAgDwAAvQMAIBAAALwDACDPAQEAAAAB0AEBAAAAAdIBAQAAAAHTAQIAAAAB1QEAAADVAQLWAQEAAAAB1wFAAAAAAdgBQAAAAAEHCgAApAQAIM8BAQAAAAHXAUAAAAAB2AFAAAAAAfEBAQAAAAH4AQgAAAAB-QECAAAAAQIAAAAWACAgAACjBAAgAwAAABYAICAAAKMEACAhAAChBAAgARkAAPIFADACAAAAFgAgGQAAoQQAIAIAAADmAwAgGQAAoAQAIAbPAQEApQMAIdcBQACoAwAh2AFAAKgDACHxAQEApQMAIfgBCADZAwAh-QECAKYDACEHCgAAogQAIM8BAQClAwAh1wFAAKgDACHYAUAAqAMAIfEBAQClAwAh-AEIANkDACH5AQIApgMAIQUgAADtBQAgIQAA8AUAIKMCAADuBQAgpAIAAO8FACCpAgAAEgAgBwoAAKQEACDPAQEAAAAB1wFAAAAAAdgBQAAAAAHxAQEAAAAB-AEIAAAAAfkBAgAAAAEDIAAA7QUAIKMCAADuBQAgqQIAABIAIBEFAACmBAAgCwAApwQAIAwAAKkEACARAACoBAAgzwEBAAAAAdUBAAAAigIC1wFAAAAAAdgBQAAAAAHnAQEAAAAB6AEBAAAAAfgBAgAAAAGBAgEAAAABggIgAAAAAYQCAAAAhAIChQIBAAAAAYYCAgAAAAGIAgAAAIgCAgMgAADrBQAgowIAAOwFACCpAgAACQAgBCAAAJoEADCjAgAAmwQAMKUCAACdBAAgqQIAAOIDADAEIAAAkQQAMKMCAACSBAAwpQIAAJQEACCpAgAAsgMAMAQgAACDBAAwowIAAIQEADClAgAAhgQAIKkCAACHBAAwBCAAAPADADCjAgAA8QMAMKUCAADzAwAgqQIAAPQDADAEIAAAxAMAMKMCAADFAwAwpQIAAMcDACCpAgAAyAMAMAMgAADpBQAgowIAAOoFACCpAgAAAQAgAAAKBAAAvQUAIAUAAL4FACAIAADABQAgDgAArgQAIBEAAMEFACASAAC_BQAgEwAAwgUAIOgBAACfAwAg_wEAAJ8DACCcAgAAnwMAIAAAAAAAAAAAAAAAAAAAAAUgAADkBQAgIQAA5wUAIKMCAADlBQAgpAIAAOYFACCpAgAAhQIAIAMgAADkBQAgowIAAOUFACCpAgAAhQIAIAAAAAAABSAAAN8FACAhAADiBQAgowIAAOAFACCkAgAA4QUAIKkCAACFAgAgAyAAAN8FACCjAgAA4AUAIKkCAACFAgAgAAAABSAAANkFACAhAADdBQAgowIAANoFACCkAgAA3AUAIKkCAAABACALIAAAzQQAMCEAANEEADCjAgAAzgQAMKQCAADPBAAwpQIAANAEACCmAgAA9AMAMKcCAAD0AwAwqAIAAPQDADCpAgAA9AMAMKoCAADSBAAwqwIAAPcDADARCAAAxwQAIAsAAKcEACAMAACpBAAgEQAAqAQAIM8BAQAAAAHVAQAAAIoCAtcBQAAAAAHYAUAAAAAB5wEBAAAAAegBAQAAAAH4AQIAAAAB-gEBAAAAAYECAQAAAAGCAiAAAAABhAIAAACEAgKGAgIAAAABiAIAAACIAgICAAAADQAgIAAA1QQAIAMAAAANACAgAADVBAAgIQAA1AQAIAEZAADbBQAwAgAAAA0AIBkAANQEACACAAAA-AMAIBkAANMEACANzwEBAKUDACHVAQAA_QOKAiLXAUAAqAMAIdgBQACoAwAh5wEBAKkDACHoAQEAqQMAIfgBAgCmAwAh-gEBAKUDACGBAgEApQMAIYICIAD6AwAhhAIAAPsDhAIihgICAKYDACGIAgAA_AOIAiIRCAAAxgQAIAsAAIAEACAMAACCBAAgEQAAgQQAIM8BAQClAwAh1QEAAP0DigIi1wFAAKgDACHYAUAAqAMAIecBAQCpAwAh6AEBAKkDACH4AQIApgMAIfoBAQClAwAhgQIBAKUDACGCAiAA-gMAIYQCAAD7A4QCIoYCAgCmAwAhiAIAAPwDiAIiEQgAAMcEACALAACnBAAgDAAAqQQAIBEAAKgEACDPAQEAAAAB1QEAAACKAgLXAUAAAAAB2AFAAAAAAecBAQAAAAHoAQEAAAAB-AECAAAAAfoBAQAAAAGBAgEAAAABggIgAAAAAYQCAAAAhAIChgICAAAAAYgCAAAAiAICAyAAANkFACCjAgAA2gUAIKkCAAABACAEIAAAzQQAMKMCAADOBAAwpQIAANAEACCpAgAA9AMAMAAAAAAAAAGmAkAAAAABBSAAANQFACAhAADXBQAgowIAANUFACCkAgAA1gUAIKkCAAABACADIAAA1AUAIKMCAADVBQAgqQIAAAEAIAAAAAUgAADPBQAgIQAA0gUAIKMCAADQBQAgpAIAANEFACCpAgAAAQAgAyAAAM8FACCjAgAA0AUAIKkCAAABACAAAAABpgIAAACeAgIBpgIAAACgAgILIAAAqgUAMCEAAK8FADCjAgAAqwUAMKQCAACsBQAwpQIAAK0FACCmAgAArgUAMKcCAACuBQAwqAIAAK4FADCpAgAArgUAMKoCAACwBQAwqwIAALEFADALIAAAngUAMCEAAKMFADCjAgAAnwUAMKQCAACgBQAwpQIAAKEFACCmAgAAogUAMKcCAACiBQAwqAIAAKIFADCpAgAAogUAMKoCAACkBQAwqwIAAKUFADALIAAAlQUAMCEAAJkFADCjAgAAlgUAMKQCAACXBQAwpQIAAJgFACCmAgAAhwQAMKcCAACHBAAwqAIAAIcEADCpAgAAhwQAMKoCAACaBQAwqwIAAIoEADALIAAAjAUAMCEAAJAFADCjAgAAjQUAMKQCAACOBQAwpQIAAI8FACCmAgAAyAMAMKcCAADIAwAwqAIAAMgDADCpAgAAyAMAMKoCAACRBQAwqwIAAMsDADAHIAAAhwUAICEAAIoFACCjAgAAiAUAIKQCAACJBQAgpwIAAC4AIKgCAAAuACCpAgAAhQIAIAsgAAD-BAAwIQAAggUAMKMCAAD_BAAwpAIAAIAFADClAgAAgQUAIKYCAACyAwAwpwIAALIDADCoAgAAsgMAMKkCAACyAwAwqgIAAIMFADCrAgAAtQMAMAsgAADyBAAwIQAA9wQAMKMCAADzBAAwpAIAAPQEADClAgAA9QQAIKYCAAD2BAAwpwIAAPYEADCoAgAA9gQAMKkCAAD2BAAwqgIAAPgEADCrAgAA-QQAMAfPAQEAAAAB1wFAAAAAAdgBQAAAAAGOAkAAAAABlwIBAAAAAZgCAQAAAAGZAgEAAAABAgAAADMAICAAAP0EACADAAAAMwAgIAAA_QQAICEAAPwEACABGQAAzgUAMAwDAADOAgAgzAEAAIQDADDNAQAAMQAQzgEAAIQDADDPAQEAAAAB1wFAAMsCACHYAUAAywIAIeQBAQDJAgAhjgJAAMsCACGXAgEAAAABmAIBAMoCACGZAgEAygIAIQIAAAAzACAZAAD8BAAgAgAAAPoEACAZAAD7BAAgC8wBAAD5BAAwzQEAAPoEABDOAQAA-QQAMM8BAQDJAgAh1wFAAMsCACHYAUAAywIAIeQBAQDJAgAhjgJAAMsCACGXAgEAyQIAIZgCAQDKAgAhmQIBAMoCACELzAEAAPkEADDNAQAA-gQAEM4BAAD5BAAwzwEBAMkCACHXAUAAywIAIdgBQADLAgAh5AEBAMkCACGOAkAAywIAIZcCAQDJAgAhmAIBAMoCACGZAgEAygIAIQfPAQEApQMAIdcBQACoAwAh2AFAAKgDACGOAkAAqAMAIZcCAQClAwAhmAIBAKkDACGZAgEAqQMAIQfPAQEApQMAIdcBQACoAwAh2AFAAKgDACGOAkAAqAMAIZcCAQClAwAhmAIBAKkDACGZAgEAqQMAIQfPAQEAAAAB1wFAAAAAAdgBQAAAAAGOAkAAAAABlwIBAAAAAZgCAQAAAAGZAgEAAAABCwkAALsDACAPAAC9AwAgEAAAvAMAIM8BAQAAAAHRAQEAAAAB0gEBAAAAAdMBAgAAAAHVAQAAANUBAtYBAQAAAAHXAUAAAAAB2AFAAAAAAQIAAAAgACAgAACGBQAgAwAAACAAICAAAIYFACAhAACFBQAgARkAAM0FADACAAAAIAAgGQAAhQUAIAIAAAC2AwAgGQAAhAUAIAjPAQEApQMAIdEBAQClAwAh0gEBAKkDACHTAQIApgMAIdUBAACnA9UBItYBAQClAwAh1wFAAKgDACHYAUAAqAMAIQsJAACrAwAgDwAArAMAIBAAAK0DACDPAQEApQMAIdEBAQClAwAh0gEBAKkDACHTAQIApgMAIdUBAACnA9UBItYBAQClAwAh1wFAAKgDACHYAUAAqAMAIQsJAAC7AwAgDwAAvQMAIBAAALwDACDPAQEAAAAB0QEBAAAAAdIBAQAAAAHTAQIAAAAB1QEAAADVAQLWAQEAAAAB1wFAAAAAAdgBQAAAAAEJBgAAqgQAIA4AAKsEACDPAQEAAAAB1wFAAAAAAdgBQAAAAAHlAQEAAAAB5gEBAAAAAecBAQAAAAHoAQEAAAABAgAAAIUCACAgAACHBQAgAwAAAC4AICAAAIcFACAhAACLBQAgCwAAAC4AIAYAAMEDACAOAADCAwAgGQAAiwUAIM8BAQClAwAh1wFAAKgDACHYAUAAqAMAIeUBAQClAwAh5gEBAKUDACHnAQEAqQMAIegBAQCpAwAhCQYAAMEDACAOAADCAwAgzwEBAKUDACHXAUAAqAMAIdgBQACoAwAh5QEBAKUDACHmAQEApQMAIecBAQCpAwAh6AEBAKkDACEOCAAAwAQAIAsAAO4DACAMAADvAwAgzwEBAAAAAdUBAAAA_gEC1wFAAAAAAdgBQAAAAAHmAQEAAAAB-gEBAAAAAfsBAQAAAAH8AQEAAAAB_gECAAAAAf8BAQAAAAGAAgAAAPEBAgIAAAASACAgAACUBQAgAwAAABIAICAAAJQFACAhAACTBQAgARkAAMwFADACAAAAEgAgGQAAkwUAIAIAAADMAwAgGQAAkgUAIAvPAQEApQMAIdUBAADOA_4BItcBQACoAwAh2AFAAKgDACHmAQEApQMAIfoBAQClAwAh-wEBAKkDACH8AQEAqQMAIf4BAgCmAwAh_wEBAKkDACGAAgAAzwPxASIOCAAAvwQAIAsAANIDACAMAADTAwAgzwEBAKUDACHVAQAAzgP-ASLXAUAAqAMAIdgBQACoAwAh5gEBAKUDACH6AQEApQMAIfsBAQCpAwAh_AEBAKkDACH-AQIApgMAIf8BAQCpAwAhgAIAAM8D8QEiDggAAMAEACALAADuAwAgDAAA7wMAIM8BAQAAAAHVAQAAAP4BAtcBQAAAAAHYAUAAAAAB5gEBAAAAAfoBAQAAAAH7AQEAAAAB_AEBAAAAAf4BAgAAAAH_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_AEBAAAAAf4BAgAAAAH_AQEAAAABgAIAAADxAQIIzwEBAAAAAdEBAQAAAAHSAQEAAAAB0wECAAAAAdUBAAAA1QEC1gEBAAAAAdcBQAAAAAHYAUAAAAABB88BAQAAAAHXAUAAAAAB2AFAAAAAAY4CQAAAAAGXAgEAAAABmAIBAAAAAZkCAQAAAAESBAAAtgUAIAUAALcFACAIAAC6BQAgDgAAuQUAIBEAALsFACASAAC4BQAgzwEBAAAAAdUBAAAAoAIC1wFAAAAAAdgBQAAAAAHoAQEAAAAB_wEBAAAAAYsCAQAAAAGaAgEAAAABmwIgAAAAAZwCAQAAAAGeAgAAAJ4CAqACIAAAAAECAAAAAQAgIAAAzwUAIAMAAAA8ACAgAADPBQAgIQAA0wUAIBQAAAA8ACAEAADrBAAgBQAA7AQAIAgAAO8EACAOAADuBAAgEQAA8AQAIBIAAO0EACAZAADTBQAgzwEBAKUDACHVAQAA6gSgAiLXAUAAqAMAIdgBQACoAwAh6AEBAKkDACH_AQEAqQMAIYsCAQClAwAhmgIBAKUDACGbAiAA-gMAIZwCAQCpAwAhngIAAOkEngIioAIgAPoDACESBAAA6wQAIAUAAOwEACAIAADvBAAgDgAA7gQAIBEAAPAEACASAADtBAAgzwEBAKUDACHVAQAA6gSgAiLXAUAAqAMAIdgBQACoAwAh6AEBAKkDACH_AQEAqQMAIYsCAQClAwAhmgIBAKUDACGbAiAA-gMAIZwCAQCpAwAhngIAAOkEngIioAIgAPoDACESBQAAtwUAIAgAALoFACAOAAC5BQAgEQAAuwUAIBIAALgFACATAAC8BQAgzwEBAAAAAdUBAAAAoAIC1wFAAAAAAdgBQAAAAAHoAQEAAAAB_wEBAAAAAYsCAQAAAAGaAgEAAAABmwIgAAAAAZwCAQAAAAGeAgAAAJ4CAqACIAAAAAECAAAAAQAgIAAA1AUAIAMAAAA8ACAgAADUBQAgIQAA2AUAIBQAAAA8ACAFAADsBAAgCAAA7wQAIA4AAO4EACARAADwBAAgEgAA7QQAIBMAAPEEACAZAADYBQAgzwEBAKUDACHVAQAA6gSgAiLXAUAAqAMAIdgBQACoAwAh6AEBAKkDACH_AQEAqQMAIYsCAQClAwAhmgIBAKUDACGbAiAA-gMAIZwCAQCpAwAhngIAAOkEngIioAIgAPoDACESBQAA7AQAIAgAAO8EACAOAADuBAAgEQAA8AQAIBIAAO0EACATAADxBAAgzwEBAKUDACHVAQAA6gSgAiLXAUAAqAMAIdgBQACoAwAh6AEBAKkDACH_AQEAqQMAIYsCAQClAwAhmgIBAKUDACGbAiAA-gMAIZwCAQCpAwAhngIAAOkEngIioAIgAPoDACESBAAAtgUAIAgAALoFACAOAAC5BQAgEQAAuwUAIBIAALgFACATAAC8BQAgzwEBAAAAAdUBAAAAoAIC1wFAAAAAAdgBQAAAAAHoAQEAAAAB_wEBAAAAAYsCAQAAAAGaAgEAAAABmwIgAAAAAZwCAQAAAAGeAgAAAJ4CAqACIAAAAAECAAAAAQAgIAAA2QUAIA3PAQEAAAAB1QEAAACKAgLXAUAAAAAB2AFAAAAAAecBAQAAAAHoAQEAAAAB-AECAAAAAfoBAQAAAAGBAgEAAAABggIgAAAAAYQCAAAAhAIChgICAAAAAYgCAAAAiAICAwAAADwAICAAANkFACAhAADeBQAgFAAAADwAIAQAAOsEACAIAADvBAAgDgAA7gQAIBEAAPAEACASAADtBAAgEwAA8QQAIBkAAN4FACDPAQEApQMAIdUBAADqBKACItcBQACoAwAh2AFAAKgDACHoAQEAqQMAIf8BAQCpAwAhiwIBAKUDACGaAgEApQMAIZsCIAD6AwAhnAIBAKkDACGeAgAA6QSeAiKgAiAA-gMAIRIEAADrBAAgCAAA7wQAIA4AAO4EACARAADwBAAgEgAA7QQAIBMAAPEEACDPAQEApQMAIdUBAADqBKACItcBQACoAwAh2AFAAKgDACHoAQEAqQMAIf8BAQCpAwAhiwIBAKUDACGaAgEApQMAIZsCIAD6AwAhnAIBAKkDACGeAgAA6QSeAiKgAiAA-gMAIQoDAACsBAAgDgAAqwQAIM8BAQAAAAHXAUAAAAAB2AFAAAAAAeQBAQAAAAHlAQEAAAAB5gEBAAAAAecBAQAAAAHoAQEAAAABAgAAAIUCACAgAADfBQAgAwAAAC4AICAAAN8FACAhAADjBQAgDAAAAC4AIAMAAMMDACAOAADCAwAgGQAA4wUAIM8BAQClAwAh1wFAAKgDACHYAUAAqAMAIeQBAQClAwAh5QEBAKUDACHmAQEApQMAIecBAQCpAwAh6AEBAKkDACEKAwAAwwMAIA4AAMIDACDPAQEApQMAIdcBQACoAwAh2AFAAKgDACHkAQEApQMAIeUBAQClAwAh5gEBAKUDACHnAQEAqQMAIegBAQCpAwAhCgMAAKwEACAGAACqBAAgzwEBAAAAAdcBQAAAAAHYAUAAAAAB5AEBAAAAAeUBAQAAAAHmAQEAAAAB5wEBAAAAAegBAQAAAAECAAAAhQIAICAAAOQFACADAAAALgAgIAAA5AUAICEAAOgFACAMAAAALgAgAwAAwwMAIAYAAMEDACAZAADoBQAgzwEBAKUDACHXAUAAqAMAIdgBQACoAwAh5AEBAKUDACHlAQEApQMAIeYBAQClAwAh5wEBAKkDACHoAQEAqQMAIQoDAADDAwAgBgAAwQMAIM8BAQClAwAh1wFAAKgDACHYAUAAqAMAIeQBAQClAwAh5QEBAKUDACHmAQEApQMAIecBAQCpAwAh6AEBAKkDACESBAAAtgUAIAUAALcFACAOAAC5BQAgEQAAuwUAIBIAALgFACATAAC8BQAgzwEBAAAAAdUBAAAAoAIC1wFAAAAAAdgBQAAAAAHoAQEAAAAB_wEBAAAAAYsCAQAAAAGaAgEAAAABmwIgAAAAAZwCAQAAAAGeAgAAAJ4CAqACIAAAAAECAAAAAQAgIAAA6QUAIAcDAADWBAAgzwEBAAAAAdcBQAAAAAHYAUAAAAAB6AEBAAAAAYoCAQAAAAGLAgEAAAABAgAAAAkAICAAAOsFACAPBwAA7QMAIAgAAMAEACAMAADvAwAgzwEBAAAAAdABAQAAAAHVAQAAAP4BAtcBQAAAAAHYAUAAAAAB5gEBAAAAAfoBAQAAAAH7AQEAAAAB_AEBAAAAAf4BAgAAAAH_AQEAAAABgAIAAADxAQICAAAAEgAgIAAA7QUAIAMAAAAQACAgAADtBQAgIQAA8QUAIBEAAAAQACAHAADRAwAgCAAAvwQAIAwAANMDACAZAADxBQAgzwEBAKUDACHQAQEApQMAIdUBAADOA_4BItcBQACoAwAh2AFAAKgDACHmAQEApQMAIfoBAQClAwAh-wEBAKkDACH8AQEAqQMAIf4BAgCmAwAh_wEBAKkDACGAAgAAzwPxASIPBwAA0QMAIAgAAL8EACAMAADTAwAgzwEBAKUDACHQAQEApQMAIdUBAADOA_4BItcBQACoAwAh2AFAAKgDACHmAQEApQMAIfoBAQClAwAh-wEBAKkDACH8AQEAqQMAIf4BAgCmAwAh_wEBAKkDACGAAgAAzwPxASIGzwEBAAAAAdcBQAAAAAHYAUAAAAAB8QEBAAAAAfgBCAAAAAH5AQIAAAABCM8BAQAAAAHQAQEAAAAB0gEBAAAAAdMBAgAAAAHVAQAAANUBAtYBAQAAAAHXAUAAAAAB2AFAAAAAAQ8HAADtAwAgCAAAwAQAIAsAAO4DACDPAQEAAAAB0AEBAAAAAdUBAAAA_gEC1wFAAAAAAdgBQAAAAAHmAQEAAAAB-gEBAAAAAfsBAQAAAAH8AQEAAAAB_gECAAAAAf8BAQAAAAGAAgAAAPEBAgIAAAASACAgAAD0BQAgAwAAABAAICAAAPQFACAhAAD4BQAgEQAAABAAIAcAANEDACAIAAC_BAAgCwAA0gMAIBkAAPgFACDPAQEApQMAIdABAQClAwAh1QEAAM4D_gEi1wFAAKgDACHYAUAAqAMAIeYBAQClAwAh-gEBAKUDACH7AQEAqQMAIfwBAQCpAwAh_gECAKYDACH_AQEAqQMAIYACAADPA_EBIg8HAADRAwAgCAAAvwQAIAsAANIDACDPAQEApQMAIdABAQClAwAh1QEAAM4D_gEi1wFAAKgDACHYAUAAqAMAIeYBAQClAwAh-gEBAKUDACH7AQEAqQMAIfwBAQCpAwAh_gECAKYDACH_AQEAqQMAIYACAADPA_EBIgnPAQEAAAAB1QEAAADxAQLXAUAAAAAB5AEBAAAAAewBAQAAAAHtAQEAAAAB7gGAAAAAAe8BCAAAAAHxAQEAAAABAwAAAAcAICAAAOsFACAhAAD8BQAgCQAAAAcAIAMAAMsEACAZAAD8BQAgzwEBAKUDACHXAUAAqAMAIdgBQACoAwAh6AEBAKUDACGKAgEApQMAIYsCAQClAwAhBwMAAMsEACDPAQEApQMAIdcBQACoAwAh2AFAAKgDACHoAQEApQMAIYoCAQClAwAhiwIBAKUDACENzwEBAAAAAdUBAAAAigIC1wFAAAAAAdgBQAAAAAHnAQEAAAAB6AEBAAAAAfgBAgAAAAGBAgEAAAABggIgAAAAAYQCAAAAhAIChQIBAAAAAYYCAgAAAAGIAgAAAIgCAhIEAAC2BQAgBQAAtwUAIAgAALoFACARAAC7BQAgEgAAuAUAIBMAALwFACDPAQEAAAAB1QEAAACgAgLXAUAAAAAB2AFAAAAAAegBAQAAAAH_AQEAAAABiwIBAAAAAZoCAQAAAAGbAiAAAAABnAIBAAAAAZ4CAAAAngICoAIgAAAAAQIAAAABACAgAAD-BQAgEgUAAKYEACAIAADHBAAgDAAAqQQAIBEAAKgEACDPAQEAAAAB1QEAAACKAgLXAUAAAAAB2AFAAAAAAecBAQAAAAHoAQEAAAAB-AECAAAAAfoBAQAAAAGBAgEAAAABggIgAAAAAYQCAAAAhAIChQIBAAAAAYYCAgAAAAGIAgAAAIgCAgIAAAANACAgAACABgAgAwAAAAsAICAAAIAGACAhAACEBgAgFAAAAAsAIAUAAP8DACAIAADGBAAgDAAAggQAIBEAAIEEACAZAACEBgAgzwEBAKUDACHVAQAA_QOKAiLXAUAAqAMAIdgBQACoAwAh5wEBAKkDACHoAQEAqQMAIfgBAgCmAwAh-gEBAKUDACGBAgEApQMAIYICIAD6AwAhhAIAAPsDhAIihQIBAKUDACGGAgIApgMAIYgCAAD8A4gCIhIFAAD_AwAgCAAAxgQAIAwAAIIEACARAACBBAAgzwEBAKUDACHVAQAA_QOKAiLXAUAAqAMAIdgBQACoAwAh5wEBAKkDACHoAQEAqQMAIfgBAgCmAwAh-gEBAKUDACGBAgEApQMAIYICIAD6AwAhhAIAAPsDhAIihQIBAKUDACGGAgIApgMAIYgCAAD8A4gCIgbPAQEAAAAB0QEBAAAAAdcBQAAAAAHYAUAAAAAB-AEIAAAAAfkBAgAAAAESBQAApgQAIAgAAMcEACALAACnBAAgEQAAqAQAIM8BAQAAAAHVAQAAAIoCAtcBQAAAAAHYAUAAAAAB5wEBAAAAAegBAQAAAAH4AQIAAAAB-gEBAAAAAYECAQAAAAGCAiAAAAABhAIAAACEAgKFAgEAAAABhgICAAAAAYgCAAAAiAICAgAAAA0AICAAAIYGACASBAAAtgUAIAUAALcFACAIAAC6BQAgDgAAuQUAIBEAALsFACATAAC8BQAgzwEBAAAAAdUBAAAAoAIC1wFAAAAAAdgBQAAAAAHoAQEAAAAB_wEBAAAAAYsCAQAAAAGaAgEAAAABmwIgAAAAAZwCAQAAAAGeAgAAAJ4CAqACIAAAAAECAAAAAQAgIAAAiAYAIAMAAAALACAgAACGBgAgIQAAjAYAIBQAAAALACAFAAD_AwAgCAAAxgQAIAsAAIAEACARAACBBAAgGQAAjAYAIM8BAQClAwAh1QEAAP0DigIi1wFAAKgDACHYAUAAqAMAIecBAQCpAwAh6AEBAKkDACH4AQIApgMAIfoBAQClAwAhgQIBAKUDACGCAiAA-gMAIYQCAAD7A4QCIoUCAQClAwAhhgICAKYDACGIAgAA_AOIAiISBQAA_wMAIAgAAMYEACALAACABAAgEQAAgQQAIM8BAQClAwAh1QEAAP0DigIi1wFAAKgDACHYAUAAqAMAIecBAQCpAwAh6AEBAKkDACH4AQIApgMAIfoBAQClAwAhgQIBAKUDACGCAiAA-gMAIYQCAAD7A4QCIoUCAQClAwAhhgICAKYDACGIAgAA_AOIAiIDAAAAPAAgIAAAiAYAICEAAI8GACAUAAAAPAAgBAAA6wQAIAUAAOwEACAIAADvBAAgDgAA7gQAIBEAAPAEACATAADxBAAgGQAAjwYAIM8BAQClAwAh1QEAAOoEoAIi1wFAAKgDACHYAUAAqAMAIegBAQCpAwAh_wEBAKkDACGLAgEApQMAIZoCAQClAwAhmwIgAPoDACGcAgEAqQMAIZ4CAADpBJ4CIqACIAD6AwAhEgQAAOsEACAFAADsBAAgCAAA7wQAIA4AAO4EACARAADwBAAgEwAA8QQAIM8BAQClAwAh1QEAAOoEoAIi1wFAAKgDACHYAUAAqAMAIegBAQCpAwAh_wEBAKkDACGLAgEApQMAIZoCAQClAwAhmwIgAPoDACGcAgEAqQMAIZ4CAADpBJ4CIqACIAD6AwAhAwAAADwAICAAAP4FACAhAACSBgAgFAAAADwAIAQAAOsEACAFAADsBAAgCAAA7wQAIBEAAPAEACASAADtBAAgEwAA8QQAIBkAAJIGACDPAQEApQMAIdUBAADqBKACItcBQACoAwAh2AFAAKgDACHoAQEAqQMAIf8BAQCpAwAhiwIBAKUDACGaAgEApQMAIZsCIAD6AwAhnAIBAKkDACGeAgAA6QSeAiKgAiAA-gMAIRIEAADrBAAgBQAA7AQAIAgAAO8EACARAADwBAAgEgAA7QQAIBMAAPEEACDPAQEApQMAIdUBAADqBKACItcBQACoAwAh2AFAAKgDACHoAQEAqQMAIf8BAQCpAwAhiwIBAKUDACGaAgEApQMAIZsCIAD6AwAhnAIBAKkDACGeAgAA6QSeAiKgAiAA-gMAIQvPAQEAAAAB0AEBAAAAAdUBAAAA_gEC1wFAAAAAAdgBQAAAAAHmAQEAAAAB-wEBAAAAAfwBAQAAAAH-AQIAAAAB_wEBAAAAAYACAAAA8QECAwAAADwAICAAAOkFACAhAACWBgAgFAAAADwAIAQAAOsEACAFAADsBAAgDgAA7gQAIBEAAPAEACASAADtBAAgEwAA8QQAIBkAAJYGACDPAQEApQMAIdUBAADqBKACItcBQACoAwAh2AFAAKgDACHoAQEAqQMAIf8BAQCpAwAhiwIBAKUDACGaAgEApQMAIZsCIAD6AwAhnAIBAKkDACGeAgAA6QSeAiKgAiAA-gMAIRIEAADrBAAgBQAA7AQAIA4AAO4EACARAADwBAAgEgAA7QQAIBMAAPEEACDPAQEApQMAIdUBAADqBKACItcBQACoAwAh2AFAAKgDACHoAQEAqQMAIf8BAQCpAwAhiwIBAKUDACGaAgEApQMAIZsCIAD6AwAhnAIBAKkDACGeAgAA6QSeAiKgAiAA-gMAIQwHAAC6AwAgCQAAuwMAIA8AAL0DACDPAQEAAAAB0AEBAAAAAdEBAQAAAAHSAQEAAAAB0wECAAAAAdUBAAAA1QEC1gEBAAAAAdcBQAAAAAHYAUAAAAABAgAAACAAICAAAJcGACASBQAApgQAIAgAAMcEACALAACnBAAgDAAAqQQAIM8BAQAAAAHVAQAAAIoCAtcBQAAAAAHYAUAAAAAB5wEBAAAAAegBAQAAAAH4AQIAAAAB-gEBAAAAAYECAQAAAAGCAiAAAAABhAIAAACEAgKFAgEAAAABhgICAAAAAYgCAAAAiAICAgAAAA0AICAAAJkGACASBAAAtgUAIAUAALcFACAIAAC6BQAgDgAAuQUAIBIAALgFACATAAC8BQAgzwEBAAAAAdUBAAAAoAIC1wFAAAAAAdgBQAAAAAHoAQEAAAAB_wEBAAAAAYsCAQAAAAGaAgEAAAABmwIgAAAAAZwCAQAAAAGeAgAAAJ4CAqACIAAAAAECAAAAAQAgIAAAmwYAIAjPAQEAAAAB0AEBAAAAAdEBAQAAAAHTAQIAAAAB1QEAAADVAQLWAQEAAAAB1wFAAAAAAdgBQAAAAAEDAAAAHgAgIAAAlwYAICEAAKAGACAOAAAAHgAgBwAAqgMAIAkAAKsDACAPAACsAwAgGQAAoAYAIM8BAQClAwAh0AEBAKUDACHRAQEApQMAIdIBAQCpAwAh0wECAKYDACHVAQAApwPVASLWAQEApQMAIdcBQACoAwAh2AFAAKgDACEMBwAAqgMAIAkAAKsDACAPAACsAwAgzwEBAKUDACHQAQEApQMAIdEBAQClAwAh0gEBAKkDACHTAQIApgMAIdUBAACnA9UBItYBAQClAwAh1wFAAKgDACHYAUAAqAMAIQMAAAALACAgAACZBgAgIQAAowYAIBQAAAALACAFAAD_AwAgCAAAxgQAIAsAAIAEACAMAACCBAAgGQAAowYAIM8BAQClAwAh1QEAAP0DigIi1wFAAKgDACHYAUAAqAMAIecBAQCpAwAh6AEBAKkDACH4AQIApgMAIfoBAQClAwAhgQIBAKUDACGCAiAA-gMAIYQCAAD7A4QCIoUCAQClAwAhhgICAKYDACGIAgAA_AOIAiISBQAA_wMAIAgAAMYEACALAACABAAgDAAAggQAIM8BAQClAwAh1QEAAP0DigIi1wFAAKgDACHYAUAAqAMAIecBAQCpAwAh6AEBAKkDACH4AQIApgMAIfoBAQClAwAhgQIBAKUDACGCAiAA-gMAIYQCAAD7A4QCIoUCAQClAwAhhgICAKYDACGIAgAA_AOIAiIDAAAAPAAgIAAAmwYAICEAAKYGACAUAAAAPAAgBAAA6wQAIAUAAOwEACAIAADvBAAgDgAA7gQAIBIAAO0EACATAADxBAAgGQAApgYAIM8BAQClAwAh1QEAAOoEoAIi1wFAAKgDACHYAUAAqAMAIegBAQCpAwAh_wEBAKkDACGLAgEApQMAIZoCAQClAwAhmwIgAPoDACGcAgEAqQMAIZ4CAADpBJ4CIqACIAD6AwAhEgQAAOsEACAFAADsBAAgCAAA7wQAIA4AAO4EACASAADtBAAgEwAA8QQAIM8BAQClAwAh1QEAAOoEoAIi1wFAAKgDACHYAUAAqAMAIegBAQCpAwAh_wEBAKkDACGLAgEApQMAIZoCAQClAwAhmwIgAPoDACGcAgEAqQMAIZ4CAADpBJ4CIqACIAD6AwAhCAQGAgUKAwgvBQ0AEA4tBhEwCxIsCBM0DwEDAAEDAwABBg4EDQAOBgUAAwgABQsdBwwnCA0ADREhCwQDAAEGDwQNAAoOEwYFBwABCAAFCxcHDBkIDQAJAgkABAoABgMDAAEJAAQKAAYBCxoAAgYbAA4cAAUHAAEJAAQNAAwPIgsQIwsBECQAAwsoAAwqABEpAAEGKwABAwABBgQ1AAU2AA44ABE5ABI3ABM6AAAAAAMNABUmABYnABcAAAADDQAVJgAWJwAXAQMAAQEDAAEDDQAcJgAdJwAeAAAAAw0AHCYAHScAHgEDAAEBAwABAw0AIyYAJCcAJQAAAAMNACMmACQnACUAAAADDQArJgAsJwAtAAAAAw0AKyYALCcALQEDAAEBAwABAw0AMiYAMycANAAAAAMNADImADMnADQCBQADCAAFAgUAAwgABQUNADkmADwnAD14ADp5ADsAAAAAAAUNADkmADwnAD14ADp5ADsCBwABCAAFAgcAAQgABQUNAEImAEUnAEZ4AEN5AEQAAAAAAAUNAEImAEUnAEZ4AEN5AEQCCQAECgAGAgkABAoABgUNAEsmAE4nAE94AEx5AE0AAAAAAAUNAEsmAE4nAE94AEx5AE0DAwABCQAECgAGAwMAAQkABAoABgUNAFQmAFcnAFh4AFV5AFYAAAAAAAUNAFQmAFcnAFh4AFV5AFYBAwABAQMAAQMNAF0mAF4nAF8AAAADDQBdJgBeJwBfAwcAAQkABA-nAgsDBwABCQAED60CCwUNAGQmAGcnAGh4AGV5AGYAAAAAAAUNAGQmAGcnAGh4AGV5AGYUAgEVOwEWPgEXPwEYQAEaQgEbRBEcRRIdRwEeSREfShMiSwEjTAEkTREoUBQpURgqUg8rUw8sVA8tVQ8uVg8vWA8wWhExWxkyXQ8zXxE0YBo1YQ82Yg83YxE4Zhs5Zx86aAI7aQI8agI9awI-bAI_bgJAcBFBcSBCcwJDdRFEdiFFdwJGeAJHeRFIfCJJfSZKfydLgAEnTIMBJ02EASdOhQEnT4cBJ1CJARFRigEoUowBJ1OOARFUjwEpVZABJ1aRASdXkgERWJUBKlmWAS5alwEDW5gBA1yZAQNdmgEDXpsBA1-dAQNgnwERYaABL2KiAQNjpAERZKUBMGWmAQNmpwEDZ6gBEWirATFprAE1aq0BBGuuAQRsrwEEbbABBG6xAQRvswEEcLUBEXG2ATZyuAEEc7oBEXS7ATd1vAEEdr0BBHe-ARF6wQE4e8IBPnzDAQZ9xAEGfsUBBn_GAQaAAccBBoEByQEGggHLARGDAcwBP4QBzgEGhQHQARGGAdEBQIcB0gEGiAHTAQaJAdQBEYoB1wFBiwHYAUeMAdkBB40B2gEHjgHbAQePAdwBB5AB3QEHkQHfAQeSAeEBEZMB4gFIlAHkAQeVAeYBEZYB5wFJlwHoAQeYAekBB5kB6gERmgHtAUqbAe4BUJwB7wEInQHwAQieAfEBCJ8B8gEIoAHzAQihAfUBCKIB9wERowH4AVGkAfoBCKUB_AERpgH9AVKnAf4BCKgB_wEIqQGAAhGqAYMCU6sBhAJZrAGGAgWtAYcCBa4BiQIFrwGKAgWwAYsCBbEBjQIFsgGPAhGzAZACWrQBkgIFtQGUAhG2AZUCW7cBlgIFuAGXAgW5AZgCEboBmwJcuwGcAmC8AZ0CC70BngILvgGfAgu_AaACC8ABoQILwQGjAgvCAaUCEcMBpgJhxAGpAgvFAasCEcYBrAJixwGuAgvIAa8CC8kBsAIRygGzAmPLAbQCaQ"
 };
 async function decodeBase64AsWasm(wasmBase64) {
   const { Buffer: Buffer2 } = await import("buffer");
@@ -61,12 +61,15 @@ __export(prismaNamespace_exports, {
   DbNull: () => DbNull2,
   Decimal: () => Decimal2,
   JsonNull: () => JsonNull2,
+  JsonNullValueFilter: () => JsonNullValueFilter,
   MealScalarFieldEnum: () => MealScalarFieldEnum,
   ModelName: () => ModelName,
   NullTypes: () => NullTypes2,
+  NullableJsonNullValueInput: () => NullableJsonNullValueInput,
   NullsOrder: () => NullsOrder,
   OrderScalarFieldEnum: () => OrderScalarFieldEnum,
   OrderitemScalarFieldEnum: () => OrderitemScalarFieldEnum,
+  PaymentScalarFieldEnum: () => PaymentScalarFieldEnum,
   PrismaClientInitializationError: () => PrismaClientInitializationError2,
   PrismaClientKnownRequestError: () => PrismaClientKnownRequestError2,
   PrismaClientRustPanicError: () => PrismaClientRustPanicError2,
@@ -123,6 +126,7 @@ var ModelName = {
   Meal: "Meal",
   Order: "Order",
   Orderitem: "Orderitem",
+  Payment: "Payment",
   ProviderProfile: "ProviderProfile",
   Review: "Review"
 };
@@ -197,6 +201,7 @@ var MealScalarFieldEnum = {
   dietaryPreference: "dietaryPreference",
   providerId: "providerId",
   category_name: "category_name",
+  deliverycharge: "deliverycharge",
   cuisine: "cuisine",
   status: "status",
   createdAt: "createdAt",
@@ -213,7 +218,8 @@ var OrderScalarFieldEnum = {
   phone: "phone",
   address: "address",
   createdAt: "createdAt",
-  updatedAt: "updatedAt"
+  updatedAt: "updatedAt",
+  paymentStatus: "paymentStatus"
 };
 var OrderitemScalarFieldEnum = {
   id: "id",
@@ -223,6 +229,18 @@ var OrderitemScalarFieldEnum = {
   mealId: "mealId",
   createdAt: "createdAt",
   updatedAt: "updatedAt"
+};
+var PaymentScalarFieldEnum = {
+  id: "id",
+  userId: "userId",
+  mealId: "mealId",
+  stripeEventId: "stripeEventId",
+  transactionId: "transactionId",
+  paymentGatewayData: "paymentGatewayData",
+  amount: "amount",
+  status: "status",
+  orderId: "orderId",
+  createdAt: "createdAt"
 };
 var ProviderProfileScalarFieldEnum = {
   id: "id",
@@ -249,6 +267,10 @@ var SortOrder = {
   asc: "asc",
   desc: "desc"
 };
+var NullableJsonNullValueInput = {
+  DbNull: DbNull2,
+  JsonNull: JsonNull2
+};
 var QueryMode = {
   default: "default",
   insensitive: "insensitive"
@@ -256,6 +278,11 @@ var QueryMode = {
 var NullsOrder = {
   first: "first",
   last: "last"
+};
+var JsonNullValueFilter = {
+  DbNull: DbNull2,
+  JsonNull: JsonNull2,
+  AnyNull: AnyNull2
 };
 var defineExtension = runtime2.Extensions.defineExtension;
 
@@ -268,6 +295,11 @@ var Role = {
 var Status = {
   activate: "activate",
   suspend: "suspend"
+};
+var PaymentStatus = {
+  PAID: "PAID",
+  UNPAID: "UNPAID",
+  FREE: "FREE"
 };
 
 // generated/prisma/client.ts
@@ -285,7 +317,329 @@ import express2 from "express";
 // src/app/lib/auth.ts
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { bearer } from "better-auth/plugins";
+import { bearer, emailOTP } from "better-auth/plugins";
+
+// src/app/utils/email.ts
+import status2 from "http-status";
+import nodemailer from "nodemailer";
+
+// src/app/config/env.ts
+import dotenv from "dotenv";
+import status from "http-status";
+
+// src/app/errorHelper/AppError.ts
+var AppError = class extends Error {
+  statusCode;
+  constructor(statusCode, message, stack = "") {
+    super(message);
+    this.statusCode = statusCode;
+    if (stack) {
+      this.stack = stack;
+    } else {
+      Error.captureStackTrace(this, this.constructor);
+    }
+  }
+};
+var AppError_default = AppError;
+
+// src/app/config/env.ts
+dotenv.config();
+var loadEnvVariables = () => {
+  const requireEnvVariable = [
+    "DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "FRONTEND_URL",
+    "PORT",
+    "ACCESS_TOKEN_SECRET",
+    "REFRESH_TOKEN_SECRET",
+    "ACCESS_TOKEN_EXPIRES_IN",
+    "REFRESH_TOKEN_EXPIRES_IN",
+    "APP_USER",
+    "APP_PASS",
+    "EMAIL",
+    "PASSWORD",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "NODE_ENV",
+    "CLOUDINARY_CLOUD_NAME",
+    "CLOUDINARY_API_KEY",
+    "CLOUDINARY_API_SECRET",
+    "SMTP_USER",
+    "SMTP_PASS",
+    "SMTP_HOST",
+    "SMTP_PORT",
+    "SMTP_FROM",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET"
+  ];
+  requireEnvVariable.forEach((variable) => {
+    if (!process.env[variable]) {
+      throw new AppError_default(
+        status.INTERNAL_SERVER_ERROR,
+        `Server configuration error: The required environment variable "${variable}" is not set. Verify your .env file or deployment environment settings.`
+      );
+    }
+  });
+  return {
+    DATABASE_URL: process.env.DATABASE_URL,
+    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
+    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
+    FRONTEND_URL: process.env.FRONTEND_URL,
+    PORT: process.env.PORT,
+    ACCESS_TOKEN_SECRET: process.env.ACCESS_TOKEN_SECRET,
+    REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET,
+    ACCESS_TOKEN_EXPIRES_IN: process.env.ACCESS_TOKEN_EXPIRES_IN,
+    REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN,
+    APP_USER: process.env.APP_USER,
+    APP_PASS: process.env.APP_PASS,
+    EMAIL: process.env.EMAIL,
+    PASSWORD: process.env.PASSWORD,
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    NODE_ENV: process.env.NODE_ENV,
+    CLOUDINARY: {
+      CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
+      CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
+      CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET
+    },
+    EMAIL_SENDER: {
+      SMTP_USER: process.env.SMTP_USER,
+      SMTP_PASS: process.env.SMTP_PASS,
+      SMTP_HOST: process.env.SMTP_HOST,
+      SMTP_PORT: process.env.SMTP_PORT,
+      SMTP_FROM: process.env.SMTP_FROM
+    },
+    STRIPE: {
+      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+      STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET
+    }
+  };
+};
+var envVars = loadEnvVariables();
+
+// src/app/templates/htmlEmailTemplete.ts
+function generateEmailTemplate(templateName, templateData) {
+  const COLORS = {
+    brand: "#ff5722",
+    // main accent (carrot orange)
+    highlight: "#ffe082",
+    // highlight (lemon yellow)
+    leaf: "#43a047",
+    // green (fresh herb/leaf)
+    background: "#f9fafc",
+    // light, airy
+    card: "#fffefb",
+    // card background, light warm
+    border: "#e0e0e0",
+    // subtle border
+    heading: "#2d2a31",
+    // deep food brown/gray
+    text: "#41392e",
+    // appetizing brown
+    subtext: "#7e7465",
+    // muted brown
+    error: "#e64a19",
+    // for missing OTP, accent red-orange
+    shadow: "rgba(255, 87, 34, 0.10)"
+    // orange tint shadow
+  };
+  switch (templateName) {
+    case "otp":
+      return `
+        <html>
+          <body style="margin:0;padding:0;background:${COLORS.background};font-family:'Segoe UI','Montserrat',Arial,sans-serif;">
+            <table align="center" width="100%" cellpadding="0" cellspacing="0" style="max-width:540px;background:${COLORS.card};margin:48px auto 0 auto;border-radius:16px;box-shadow:0 10px 42px ${COLORS.shadow};border:1px solid ${COLORS.border};overflow:hidden;">
+              <tr>
+                <td style="padding:3em 2.2em 1.2em 2.2em;">
+                  <div style="text-align:center;">
+                    <img src="https://images.pexels.com/photos/36982119/pexels-photo-36982119.jpeg" alt="FoodHub" height="54" style="display:block;margin:0 auto 18px auto;border-radius:10px;box-shadow:0 2px 10px #f3d2b0;"/>
+                    <h1 style="margin:0 0 10px 0;font-size:2.1em;font-weight:800;letter-spacing:-1px;color:${COLORS.brand};line-height:1.16;">
+                      FoodHub Secure Verification
+                    </h1>
+                    <span style="display:inline-block;margin:0 auto 8px auto;font-size:1.19em;color:${COLORS.leaf};font-weight:700;">
+                      One Step Away From Tasty Journeys!
+                    </span>
+                  </div>
+                  <div style="margin:32px 0 22px 0;border-radius:15px;padding:28px 0;background:linear-gradient(92deg,#fff9ee 55%,${COLORS.highlight} 120%);border:1.5px dashed ${COLORS.brand};text-align:center;box-shadow:0 3px 22px #ffe9d5;">
+                    <span style="
+                      display:inline-block;
+                      font-size:2.3em;
+                      font-family:'Space Mono',monospace;
+                      color:${COLORS.card};
+                      background:linear-gradient(89deg,${COLORS.leaf} 14%,${COLORS.brand} 110%);
+                      border-radius:10px;
+                      padding:15px 56px;
+                      font-weight:900;
+                      letter-spacing:0.22em;
+                      box-shadow:0 4px 18px 0 rgba(255,87,34,0.09);
+                      ">
+                      ${templateData.otp ? escapeStr(templateData.otp) : `<span style="color:${COLORS.error}">\u2022\u2022\u2022\u2022\u2022\u2022\u2022</span>`}
+                    </span>
+                  </div>
+                  <p style="color:${COLORS.text};font-size:1.32em;line-height:1.66;margin:20px 0 24px 0;font-weight:500;">
+                    Hi${templateData.name ? ` <b>${escapeStr(templateData.name)}</b>,` : ","}<br/>
+                    Welcome to FoodHub! Please enter the above code to verify your email and continue to delightful food experiences.
+                  </p>
+                  <ul style="font-size:1em;color:${COLORS.subtext};margin:0 0 40px 14px;padding:0;">
+                    <li style="margin-bottom:7px;">This OTP is valid for a limited time, so complete your verification promptly.</li>
+                    <li style="margin-bottom:7px;">Keep your code confidential for account security.</li>
+                  </ul>
+                  <div style="margin:40px 0 0 0;text-align:center;">
+                    <a href="https://foodhub.app" target="_blank" style="
+                      display:inline-block;
+                      padding:12px 42px;
+                      background:linear-gradient(90deg,${COLORS.brand},${COLORS.leaf});
+                      color:white;
+                      text-decoration:none;
+                      font-weight:700;
+                      border-radius:7px;
+                      font-size:1.07em;
+                      letter-spacing:0.04em;
+                      box-shadow:0 4px 14px rgba(67,160,71,0.13);
+                      border:none;
+                      ">
+                      Explore FoodHub
+                    </a>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="background:${COLORS.background};padding:1.3em 2.4em 1.38em 2.4em;text-align:center;border-top:1px solid ${COLORS.border};">
+                  <span style="color:${COLORS.subtext};font-size:1.02em;">
+                    If you did not request this, simply ignore this email.<br/>
+                    Enjoy fresh discoveries with <strong style="color:${COLORS.brand}">FoodHub</strong>!
+                  </span>
+                  <div style="margin-top:15px;">
+                    <span style="font-size:0.95em;color:#b6b2ad;">
+                      &copy; ${(/* @__PURE__ */ new Date()).getFullYear()} FoodHub. All rights reserved.
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </body>
+        </html>
+      `;
+    default:
+      return `
+        <html>
+          <body style="margin:0;padding:0;background:${COLORS.background};font-family:'Segoe UI','Montserrat',Arial,sans-serif;">
+            <table align="center" width="100%" cellpadding="0" cellspacing="0" style="max-width:540px;background:${COLORS.card};margin:48px auto 0 auto;border-radius:16px;box-shadow:0 10px 42px ${COLORS.shadow};border:1px solid ${COLORS.border};overflow:hidden;">
+              <tr>
+                <td style="padding:2.6em 2.4em 1.5em 2.4em;">
+                  <div style="text-align:center;">
+                    <img src="https://images.pexels.com/photos/36982119/pexels-photo-36982119.jpeg" alt="FoodHub" height="48" style="display:block;margin:0 auto 24px auto;border-radius:10px;box-shadow:0 2px 10px #f3d2b0;" />
+                  </div>
+                  <h2 style="margin:0 0 10px 0;color:${COLORS.leaf};font-size:2.05em;font-weight:800;letter-spacing:-1px;text-align:center;">
+                    FoodHub Notification
+                  </h2>
+                  <span style="display:block;font-size:1.16em;color:${COLORS.brand};margin-bottom:12px;text-align:center;font-weight:600;">
+                    Discover. Taste. Enjoy.
+                  </span>
+                  <p style="font-size:1.10em;color:${COLORS.text};margin:12px 0 27px 0;text-align:center;">
+                    You\u2019ve received a system message from FoodHub.
+                  </p>
+                  <div style="border:1px solid ${COLORS.border};border-radius:11px;padding:20px 22px;background:#fcf8ee;">
+                    <p style="color:${COLORS.text};font-size:1.07em;line-height:1.7;margin:8px 0;">
+                      This is an automated notification. For more delicious updates, visit FoodHub and enjoy a world of experiences!
+                    </p>
+                  </div>
+                  <div style="margin:42px 0 16px 0;text-align:center;">
+                    <a href="https://foodhub.app" target="_blank" style="
+                      display:inline-block;
+                      background:linear-gradient(90deg,${COLORS.leaf},${COLORS.brand});
+                      color:white;
+                      font-weight:700;
+                      font-size:1.06em;
+                      padding:11px 38px;
+                      border-radius:8px;
+                      text-decoration:none;
+                      box-shadow:0 3px 12px 0 rgba(255,87,34,0.08);
+                      border:none;">
+                      Go to FoodHub
+                    </a>
+                  </div>
+                </td>
+              </tr>
+              <tr>
+                <td style="background:${COLORS.background};padding:1.28em 2em 1.26em 2em;text-align:center;border-top:1px solid ${COLORS.border};">
+                  <span style="color:${COLORS.subtext};font-size:0.97em;">
+                    Thank you for being part of <strong style="color:${COLORS.brand}">FoodHub</strong>.
+                  </span>
+                  <div style="margin-top:13px;">
+                    <span style="font-size:0.92em;color:#b6b2ad;">
+                      &copy; ${(/* @__PURE__ */ new Date()).getFullYear()} FoodHub. All rights reserved.
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            </table>
+          </body>
+        </html>
+      `;
+  }
+}
+function escapeStr(str) {
+  return str.replace(/[&<>"'`]/g, (m) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+    "`": "&#96;"
+  })[m]);
+}
+
+// src/app/utils/email.ts
+var smtpConfig = {
+  host: envVars.EMAIL_SENDER.SMTP_HOST,
+  port: Number(envVars.EMAIL_SENDER.SMTP_PORT),
+  secure: Number(envVars.EMAIL_SENDER.SMTP_PORT) === 465,
+  // true for 465, false for others
+  auth: {
+    user: envVars.EMAIL_SENDER.SMTP_USER,
+    pass: envVars.EMAIL_SENDER.SMTP_PASS
+  },
+  tls: { rejectUnauthorized: false },
+  connectionTimeout: 15e3,
+  greetingTimeout: 15e3,
+  socketTimeout: 3e4
+};
+var transporter = nodemailer.createTransport(smtpConfig);
+var sendEmail = async ({
+  to,
+  subject,
+  templateName,
+  templateData,
+  attachments
+}) => {
+  try {
+    const mailOptions = {
+      from: `foodhub <${envVars.EMAIL_SENDER.SMTP_USER}>`,
+      to,
+      subject,
+      html: generateEmailTemplate(templateName, templateData),
+      attachments: attachments?.map(({ filename, content, contentType }) => ({
+        filename,
+        content,
+        contentType
+      }))
+    };
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Email sent to ${to} : ${info.messageId}`);
+  } catch (error) {
+    console.error("Email Sending Error", {
+      message: error?.message,
+      code: error?.code,
+      command: error?.command,
+      responseCode: error?.responseCode
+    });
+    throw new AppError_default(status2.INTERNAL_SERVER_ERROR, "Failed to send email");
+  }
+};
+
+// src/app/lib/auth.ts
 console.log(process.env.FRONTEND_URL, "s");
 console.log(process.env.BETTER_AUTH_SECRET, "s");
 var auth = betterAuth({
@@ -327,7 +681,60 @@ var auth = betterAuth({
     }
   },
   plugins: [
-    bearer()
+    bearer(),
+    emailOTP({
+      overrideDefaultEmailVerification: true,
+      async sendVerificationOTP({ email, otp, type }) {
+        if (type === "email-verification") {
+          const user = await prisma.user.findUnique({
+            where: {
+              email
+            }
+          });
+          if (user?.role === "Admin") {
+            await prisma.user.update({
+              where: {
+                email
+              },
+              data: {
+                emailVerified: true
+              }
+            });
+          }
+          if (user && !user.emailVerified) {
+            await sendEmail({
+              to: user.email,
+              subject: "Verify your email address",
+              templateName: "otp",
+              templateData: {
+                name: user.name,
+                otp
+              }
+            });
+          }
+        } else if (type === "forget-password") {
+          const user = await prisma.user.findUnique({
+            where: {
+              email
+            }
+          });
+          if (user) {
+            await sendEmail({
+              to: email,
+              subject: "Password Reset OTP",
+              templateName: "otp",
+              templateData: {
+                name: user.name,
+                otp
+              }
+            });
+          }
+        }
+      },
+      expiresIn: 10 * 60,
+      otpLength: 6,
+      resendStrategy: "rotate"
+    })
   ],
   emailVerification: {
     autoSignInAfterVerification: true,
@@ -401,38 +808,21 @@ import cookieParser from "cookie-parser";
 import cors from "cors";
 
 // src/app/middleware/globalErrorHandeller.ts
-import status from "http-status";
-
-// src/app/errorHelper/AppError.ts
-var AppError = class extends Error {
-  statusCode;
-  constructor(statusCode, message, stack = "") {
-    super(message);
-    this.statusCode = statusCode;
-    if (stack) {
-      this.stack = stack;
-    } else {
-      Error.captureStackTrace(this, this.constructor);
-    }
-  }
-};
-var AppError_default = AppError;
-
-// src/app/middleware/globalErrorHandeller.ts
+import status3 from "http-status";
 function errorHandler(err, req, res, next) {
-  let statusCode = status.INTERNAL_SERVER_ERROR;
+  let statusCode = status3.INTERNAL_SERVER_ERROR;
   let message = "Internal Server Error";
   let errorSources = [];
   if (err instanceof prismaNamespace_exports.PrismaClientValidationError) {
-    statusCode = status.BAD_REQUEST;
+    statusCode = status3.BAD_REQUEST;
     message = "Validation Error";
     errorSources.push({ message: err.message });
   } else if (err?.code === "ETIMEDOUT" || err?.code === "PROTOCOL_TIMEOUT") {
-    statusCode = status.GATEWAY_TIMEOUT;
+    statusCode = status3.GATEWAY_TIMEOUT;
     message = "Database request timed out. Please retry after a short while.";
     errorSources.push({ message });
   } else if (err instanceof AppError_default) {
-    statusCode = err.statusCode || status.BAD_REQUEST;
+    statusCode = err.statusCode || status3.BAD_REQUEST;
     message = err.message;
     errorSources.push({ message: err.message });
   }
@@ -453,7 +843,7 @@ import { Router as Router8 } from "express";
 import { Router } from "express";
 
 // src/app/middleware/auth.ts
-import status2 from "http-status";
+import status4 from "http-status";
 
 // src/app/utils/cookie.ts
 var setCookie = (res, key, value, options) => {
@@ -558,21 +948,21 @@ var auth2 = (roles) => {
           return next();
         }
       }
-      throw new AppError_default(status2.UNAUTHORIZED, "Unauthorized! Please login to continue.");
+      throw new AppError_default(status4.UNAUTHORIZED, "Unauthorized! Please login to continue.");
     } catch (error) {
-      next(new AppError_default(error.statusCode || status2.BAD_REQUEST, error.message));
+      next(new AppError_default(error.statusCode || status4.BAD_REQUEST, error.message));
     }
   };
 };
 var validateUserStatus = (userStatus) => {
   const forbiddenStatus = ["suspend", "BLOCKED", "DELETED"];
   if (forbiddenStatus.includes(userStatus)) {
-    throw new AppError_default(status2.UNAUTHORIZED, "Access denied! Your account is not active.");
+    throw new AppError_default(status4.UNAUTHORIZED, "Access denied! Your account is not active.");
   }
 };
 var validateUserRole = (userRole, allowedRoles) => {
   if (allowedRoles.length > 0 && !allowedRoles.includes(userRole)) {
-    throw new AppError_default(status2.FORBIDDEN, "Forbidden! You don't have permission.");
+    throw new AppError_default(status4.FORBIDDEN, "Forbidden! You don't have permission.");
   }
 };
 var handleSessionExpiryHeader = (res, session) => {
@@ -597,14 +987,29 @@ var UserRoles = {
 };
 
 // src/app/modules/meal/meal.service.ts
-import status3 from "http-status";
-var createMeal = async (data, userid) => {
+import status5 from "http-status";
+
+// src/app/utils/parseDate.ts
+function parseDateForPrisma(dateStr) {
+  const parsedDate = new Date(dateStr);
+  if (isNaN(parsedDate.getTime())) {
+    throw new Error("Invalid date format! Use YYYY-MM-DD or ISO string.");
+  }
+  const startOfDay = new Date(parsedDate);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(parsedDate);
+  endOfDay.setHours(23, 59, 59, 999);
+  return { gte: startOfDay, lte: endOfDay };
+}
+
+// src/app/modules/meal/meal.service.ts
+var createMeal = async (data, email) => {
   const providerid = await prisma.user.findUnique({
-    where: { id: userid },
+    where: { email },
     include: { provider: { select: { id: true } } }
   });
   if (!providerid) {
-    throw new AppError_default(status3.NOT_FOUND, "provider not found");
+    throw new AppError_default(status5.NOT_FOUND, "provider not found");
   }
   const categoryCheck = await prisma.category.findUnique({
     where: {
@@ -612,35 +1017,36 @@ var createMeal = async (data, userid) => {
     }
   });
   if (!categoryCheck) {
-    throw new AppError_default(status3.NOT_FOUND, "category not found");
+    throw new AppError_default(status5.NOT_FOUND, "category not found");
   }
   const result = await prisma.meal.create({
     data: {
       ...data,
-      providerId: providerid.provider.id
+      providerId: providerid.provider.id,
+      deliverycharge: data.deliverycharge !== void 0 ? data.deliverycharge : 0
     }
   });
   return result;
 };
-var getAllmeals = async (data, isAvailable, page, limit, skip, sortBy, sortOrder) => {
+var getAllmeals = async (data, isAvailable, page, limit, skip, sortBy, sortOrder, search) => {
   const andConditions = [];
   if (data) {
     const orConditions = [];
-    if (data.meals_name) {
-      orConditions.push({
-        meals_name: {
-          contains: data.meals_name,
-          mode: "insensitive"
+    if (search) {
+      orConditions.push(
+        {
+          meals_name: {
+            contains: search,
+            mode: "insensitive"
+          }
+        },
+        {
+          description: {
+            contains: search,
+            mode: "insensitive"
+          }
         }
-      });
-    }
-    if (data.description) {
-      orConditions.push({
-        description: {
-          contains: data.description,
-          mode: "insensitive"
-        }
-      });
+      );
     }
     if (data.cuisine) {
       orConditions.push({
@@ -667,7 +1073,7 @@ var getAllmeals = async (data, isAvailable, page, limit, skip, sortBy, sortOrder
   if (data.price) {
     andConditions.push({
       price: {
-        gte: 1,
+        gte: 0,
         lte: Number(data.price)
       }
     });
@@ -688,7 +1094,9 @@ var getAllmeals = async (data, isAvailable, page, limit, skip, sortBy, sortOrder
       status: "APPROVED"
     },
     include: {
-      provider: true,
+      provider: {
+        include: { user: true }
+      },
       reviews: {
         where: {
           parentId: null,
@@ -720,6 +1128,17 @@ var getAllmeals = async (data, isAvailable, page, limit, skip, sortBy, sortOrder
     }
   };
 };
+var getMealByProvider = async () => {
+  const meal = await prisma.meal.findFirst({
+    where: {
+      status: "APPROVED"
+    },
+    select: {
+      deliverycharge: true
+    }
+  });
+  return meal;
+};
 var getSinglemeals = async (id) => {
   const result = await prisma.meal.findUniqueOrThrow({
     where: {
@@ -730,12 +1149,25 @@ var getSinglemeals = async (id) => {
       category: true,
       provider: {
         include: {
-          user: true
+          user: true,
+          meals: {
+            include: {
+              reviews: {
+                where: {
+                  parentId: null,
+                  status: "APPROVED",
+                  rating: { gt: 0 }
+                }
+              }
+            }
+          }
         }
       },
       reviews: {
         where: {
-          parentId: null
+          parentId: null,
+          status: "APPROVED",
+          rating: { gt: 0 }
         },
         include: {
           replies: {
@@ -753,37 +1185,28 @@ var getSinglemeals = async (id) => {
       }
     }
   });
-  const ratings = await prisma.review.groupBy({
-    by: ["mealId"],
-    where: {
-      rating: {
-        gt: 0
-      },
-      parentId: null,
-      meal: {
-        provider: {
-          userId: result.provider.userId
-        }
-      }
-    },
-    _avg: {
-      rating: true
-    },
-    _count: {
-      rating: true
-    }
+  const mealTotalReviews = result.reviews.length;
+  const mealAvgRating = mealTotalReviews > 0 ? Number(
+    (result.reviews.reduce((sum, review) => sum + review.rating, 0) / mealTotalReviews).toFixed(1)
+  ) : 0;
+  const providerMeals = result.provider?.meals ?? [];
+  let providerTotalReviews = 0;
+  let providerRatingSum = 0;
+  providerMeals.forEach((meal) => {
+    const ratingReviews = meal.reviews.filter(
+      (review) => typeof review.rating === "number"
+    );
+    providerTotalReviews += ratingReviews.length;
+    providerRatingSum += ratingReviews.reduce((sum, r) => sum + r.rating, 0);
   });
-  const totalReview = ratings.reduce((sum, r) => sum + r._count.rating, 0);
-  const totalRating = ratings.reduce(
-    (sum, r) => sum + (r._avg.rating ?? 0) * r._count.rating,
-    0
-  );
-  const averageRating = totalReview > 0 ? totalRating / totalReview : 0;
+  const providerAvgRating = providerTotalReviews > 0 ? Number((providerRatingSum / providerTotalReviews).toFixed(1)) : 0;
   return {
     ...result,
+    avgRating: mealAvgRating,
+    totalReviews: mealTotalReviews,
     providerRating: {
-      totalReview: totalReview ?? 0,
-      averageRating: averageRating ?? 0
+      averageRating: providerAvgRating,
+      totalReview: providerTotalReviews
     }
   };
 };
@@ -793,10 +1216,10 @@ var UpdateMeals = async (data, mealid) => {
     where: { id: mealid }
   });
   if (!existmeal) {
-    throw new AppError_default(status3.NOT_FOUND, "meals not found");
+    throw new AppError_default(status5.NOT_FOUND, "meals not found");
   }
   if (existmeal.category_name === category_name) {
-    throw new AppError_default(status3.CONFLICT, "category_name is already up to date.");
+    throw new AppError_default(status5.CONFLICT, "category_name is already up to date.");
   }
   const result = await prisma.meal.update({
     where: {
@@ -815,7 +1238,7 @@ var DeleteMeals = async (mealid) => {
     }
   });
   if (!existmeal) {
-    throw new AppError_default(status3.NOT_FOUND, "meal not found");
+    throw new AppError_default(status5.NOT_FOUND, "meal not found");
   }
   const result = await prisma.meal.delete({
     where: {
@@ -825,12 +1248,100 @@ var DeleteMeals = async (mealid) => {
   console.log(result, "result");
   return result;
 };
-var getOwnMeals = async (userid) => {
+var getOwnMeals = async (email, data, isAvailable, page, limit, skip, sortBy, sortOrder, search) => {
+  data = data && typeof data === "object" ? data : {};
+  let userid;
+  if (email) {
+    const user = await prisma.user.findUnique({
+      where: { email }
+    });
+    if (!user) {
+      throw new AppError_default(status5.NOT_FOUND, "User not found");
+    }
+    userid = user.id;
+  }
+  const andConditions = [];
+  if (data) {
+    const orConditions = [];
+    if (search) {
+      orConditions.push(
+        {
+          meals_name: {
+            contains: search,
+            mode: "insensitive"
+          }
+        },
+        {
+          description: {
+            contains: search,
+            mode: "insensitive"
+          }
+        },
+        {
+          address: {
+            contains: search,
+            mode: "insensitive"
+          }
+        }
+      );
+    }
+    if (data.cuisine) {
+      orConditions.push({
+        cuisine: {
+          equals: data.cuisine
+        }
+      });
+    }
+    if (data.category_name) {
+      orConditions.push({
+        category_name: {
+          contains: data.category_name,
+          mode: "insensitive"
+        }
+      });
+    }
+    if (data.createdAt) {
+      const dateRange = parseDateForPrisma(data.createdAt);
+      andConditions.push({ createdAt: dateRange.gte });
+    }
+    if (orConditions.length > 0) {
+      andConditions.push({ OR: orConditions });
+    }
+  }
+  if (typeof isAvailable === "boolean") {
+    andConditions.push({ isAvailable });
+  }
+  if (data.status) {
+    andConditions.push({
+      status: {
+        equals: data.status
+      }
+    });
+  }
+  if (data.price) {
+    andConditions.push({
+      price: {
+        gte: 0,
+        lte: Number(data.price)
+      }
+    });
+  }
+  if (data.dietaryPreference?.length) {
+    const dietaryList = data.dietaryPreference.split(
+      ","
+    );
+    andConditions.push({
+      OR: dietaryList.map((item) => ({ dietaryPreference: item }))
+    });
+  }
   const meals = await prisma.meal.findMany({
+    take: limit,
+    skip,
     where: {
       provider: {
         userId: userid
-      }
+      },
+      AND: andConditions
     },
     include: {
       category: true,
@@ -850,7 +1361,7 @@ var getOwnMeals = async (userid) => {
     }
   });
   const mealIds = meals.map((meal) => meal.id);
-  const reviewStats = await prisma.review.groupBy({
+  const reviewData = await prisma.review.groupBy({
     by: ["mealId"],
     where: {
       mealId: { in: mealIds },
@@ -865,26 +1376,40 @@ var getOwnMeals = async (userid) => {
       rating: true
     }
   });
-  const mealsWithStats = meals.map((meal) => {
-    const stats = reviewStats.find((s) => s.mealId === meal.id);
+  const mealsData = meals.map((meal) => {
+    const stats = reviewData.find((s) => s.mealId === meal.id);
     return {
       ...meal,
-      averageRating: stats?._avg?.rating || 0,
+      avgRating: stats?._avg?.rating || 0,
       // Default to 0
-      totalReview: stats?._count?.rating || 0
+      totalReviews: stats?._count?.rating || 0
       // Default to 0
     };
   });
-  return mealsWithStats;
+  const total = await prisma.meal.count({ where: {
+    AND: andConditions,
+    provider: {
+      userId: userid
+    }
+  } });
+  return {
+    mealsData,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalpage: Math.ceil(total / (limit || 1))
+    }
+  };
 };
 var updateStatus = async (data, mealid) => {
-  const { status: status19 } = data;
+  const { status: status21 } = data;
   const existmeal = await prisma.meal.findUnique({
     where: {
       id: mealid
     }
   });
-  if (existmeal?.status === status19) {
+  if (existmeal?.status === status21) {
     throw new AppError_default(409, "meal status already up to date");
   }
   if (existmeal?.id !== mealid) {
@@ -895,35 +1420,42 @@ var updateStatus = async (data, mealid) => {
       id: mealid
     },
     data: {
-      status: status19
+      status: status21
     }
   });
   return result;
 };
-var getAllMealsForAdmin = async (data, page, limit, skip, sortBy, sortOrder) => {
+var getAllMealsForAdmin = async (data, isAvailable, page, limit, skip, sortBy, sortOrder, search) => {
   const andConditions = [];
   if (data) {
     const orConditions = [];
-    if (data.meals_name) {
-      orConditions.push({
-        meals_name: {
-          contains: data.meals_name,
-          mode: "insensitive"
+    if (search) {
+      orConditions.push(
+        {
+          meals_name: {
+            contains: search,
+            mode: "insensitive"
+          }
+        },
+        {
+          description: {
+            contains: search,
+            mode: "insensitive"
+          }
         }
-      });
-    }
-    if (data.description) {
-      orConditions.push({
-        description: {
-          contains: data.description,
-          mode: "insensitive"
-        }
-      });
+      );
     }
     if (data.cuisine) {
       orConditions.push({
         cuisine: {
           equals: data.cuisine
+        }
+      });
+    }
+    if (data.status) {
+      orConditions.push({
+        status: {
+          equals: data.status
         }
       });
     }
@@ -935,19 +1467,64 @@ var getAllMealsForAdmin = async (data, page, limit, skip, sortBy, sortOrder) => 
         }
       });
     }
+    if (orConditions.length > 0) {
+      andConditions.push({ OR: orConditions });
+    }
   }
-  const result = await prisma.meal.findMany({
+  if (typeof isAvailable === "boolean") {
+    andConditions.push({ isAvailable });
+  }
+  if (data.price) {
+    andConditions.push({
+      price: {
+        gte: 0,
+        lte: Number(data.price)
+      }
+    });
+  }
+  if (data.dietaryPreference?.length) {
+    const dietaryList = data.dietaryPreference.split(
+      ","
+    );
+    andConditions.push({
+      OR: dietaryList.map((item) => ({ dietaryPreference: item }))
+    });
+  }
+  const meals = await prisma.meal.findMany({
     take: limit,
     skip,
     where: {
-      AND: andConditions,
-      status: "APPROVED"
+      AND: andConditions
+    },
+    include: {
+      provider: {
+        include: { user: true }
+      },
+      reviews: {
+        where: {
+          parentId: null,
+          rating: { gt: 0 },
+          status: "APPROVED"
+        },
+        include: {
+          customer: true
+        }
+      }
     },
     orderBy: {
       [sortBy]: sortOrder
     }
   });
-  return result;
+  const total = await prisma.meal.count({ where: { AND: andConditions } });
+  return {
+    data: meals,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalpage: Math.ceil(total / limit) || 1
+    }
+  };
 };
 var mealService = {
   createMeal,
@@ -957,7 +1534,8 @@ var mealService = {
   getSinglemeals,
   getOwnMeals,
   updateStatus,
-  getAllMealsForAdmin
+  getAllMealsForAdmin,
+  getMealByProvider
 };
 
 // src/app/helpers/paginationHelping.ts
@@ -1005,15 +1583,15 @@ var sendResponse = (res, responseData) => {
 };
 
 // src/app/modules/meal/meal.controller.ts
-import status4 from "http-status";
+import status6 from "http-status";
 var createMeal2 = catchAsync(async (req, res) => {
   const user = req.user;
   if (!user) {
     return res.status(401).json({ success: false, message: "you are unauthorized" });
   }
-  const result = await mealService.createMeal(req.body, user.id);
+  const result = await mealService.createMeal(req.body, user.email);
   sendResponse(res, {
-    httpStatusCode: status4.CREATED,
+    httpStatusCode: status6.CREATED,
     success: true,
     message: "your meal has been created",
     data: result
@@ -1022,11 +1600,14 @@ var createMeal2 = catchAsync(async (req, res) => {
 var UpdateMeals2 = catchAsync(async (req, res) => {
   const user = req.user;
   if (!user) {
-    return res.status(status4.UNAUTHORIZED).json({ success: false, message: "you are not authorized" });
+    return res.status(status6.UNAUTHORIZED).json({ success: false, message: "you are not authorized" });
   }
-  const result = await mealService.UpdateMeals(req.body, req.params.id);
+  const result = await mealService.UpdateMeals(
+    req.body,
+    req.params.id
+  );
   sendResponse(res, {
-    httpStatusCode: status4.OK,
+    httpStatusCode: status6.OK,
     success: true,
     message: "meal update successfully",
     data: result
@@ -1035,45 +1616,72 @@ var UpdateMeals2 = catchAsync(async (req, res) => {
 var DeleteMeals2 = catchAsync(async (req, res) => {
   const user = req.user;
   if (!user) {
-    return res.status(status4.UNAUTHORIZED).json({
+    return res.status(status6.UNAUTHORIZED).json({
       success: false,
       message: "you are unauthorized"
     });
   }
   const result = await mealService.DeleteMeals(req.params.id);
   sendResponse(res, {
-    httpStatusCode: status4.OK,
+    httpStatusCode: status6.OK,
     success: true,
     message: "your meal delete has been successfully",
     data: result
   });
 });
 var Getallmeals = catchAsync(async (req, res) => {
+  const { search } = req.query;
   const isAvailable = req.query.isAvailable ? req.query.isAvailable === "true" ? true : req.query.isAvailable == "false" ? false : void 0 : void 0;
-  const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(req.query);
-  const result = await mealService.getAllmeals(req.query, isAvailable, page, limit, skip, sortBy, sortOrder);
+  const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(
+    req.query
+  );
+  const result = await mealService.getAllmeals(
+    req.query,
+    isAvailable,
+    page,
+    limit,
+    skip,
+    sortBy,
+    sortOrder,
+    search
+  );
   sendResponse(res, {
-    httpStatusCode: status4.OK,
+    httpStatusCode: status6.OK,
     success: true,
     message: " retrieve all meals successfully",
     data: result
   });
 });
-var getAllMealsForAdmin2 = catchAsync(async (req, res, next) => {
-  const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(req.query);
-  const result = await mealService.getAllMealsForAdmin(req.query, page, limit, skip, sortBy, sortOrder);
-  sendResponse(res, {
-    httpStatusCode: status4.OK,
-    success: true,
-    message: " retrieve all meals for admin successfully",
-    data: result
-  });
-});
+var getAllMealsForAdmin2 = catchAsync(
+  async (req, res) => {
+    const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(
+      req.query
+    );
+    const { search } = req.query;
+    const isAvailable = req.query.isAvailable ? req.query.isAvailable === "true" ? true : req.query.isAvailable == "false" ? false : void 0 : void 0;
+    const result = await mealService.getAllMealsForAdmin(
+      req.query,
+      isAvailable,
+      page,
+      limit,
+      skip,
+      sortBy,
+      sortOrder,
+      search
+    );
+    sendResponse(res, {
+      httpStatusCode: status6.OK,
+      success: true,
+      message: " retrieve all meals for admin successfully",
+      data: result
+    });
+  }
+);
 var GetSignlemeals = catchAsync(async (req, res) => {
   const { id } = req.params;
   const result = await mealService.getSinglemeals(id);
   sendResponse(res, {
-    httpStatusCode: status4.OK,
+    httpStatusCode: status6.OK,
     success: true,
     message: " retrieve single meal successfully",
     data: result
@@ -1082,26 +1690,66 @@ var GetSignlemeals = catchAsync(async (req, res) => {
 var getownmeals = catchAsync(async (req, res) => {
   const user = req.user;
   if (!user) {
-    return res.status(status4.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+    return res.status(status6.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
   }
-  const result = await mealService.getOwnMeals(user.id);
+  const { search } = req.query;
+  console.log(req.query, "dd");
+  const isAvailable = req.query.isAvailable ? req.query.isAvailable === "true" ? true : req.query.isAvailable == "false" ? false : void 0 : void 0;
+  const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(
+    req.query
+  );
+  const result = await mealService.getOwnMeals(
+    user.email,
+    req.query,
+    isAvailable,
+    page,
+    limit,
+    skip,
+    sortBy,
+    sortOrder,
+    search
+  );
   sendResponse(res, {
-    httpStatusCode: status4.OK,
+    httpStatusCode: status6.OK,
     success: true,
     message: "your own meal retrieve has been successfully",
     data: result
   });
 });
+var DeviceryCharge = catchAsync(async (req, res) => {
+  const { providerId } = req.query;
+  if (!providerId) {
+    return res.status(status6.BAD_REQUEST).json({
+      success: false,
+      message: "providerId is required"
+    });
+  }
+  const meal = await mealService.getMealByProvider();
+  if (!meal) {
+    return res.status(status6.NOT_FOUND).json({
+      success: false,
+      message: "No meal found for this provider"
+    });
+  }
+  sendResponse(res, {
+    httpStatusCode: status6.OK,
+    success: true,
+    message: "Delivery charge retrieved successfully",
+    data: { deliveryCharge: meal.deliverycharge }
+  });
+});
 var updateStatus2 = catchAsync(async (req, res) => {
+  console.log(req, "sdfsffsdfsdfsdf");
   console.log(req.body, "req,body");
+  console.log(req.params.id, "dfsdf");
   const user = req.user;
   if (!user) {
-    return res.status(status4.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+    return res.status(status6.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
   }
   const { id } = req.params;
   const result = await mealService.updateStatus(req.body, id);
   sendResponse(res, {
-    httpStatusCode: status4.OK,
+    httpStatusCode: status6.OK,
     success: true,
     message: "meal status update successfully",
     data: result
@@ -1115,7 +1763,8 @@ var mealController = {
   GetSignlemeals,
   getownmeals,
   updateStatus: updateStatus2,
-  getAllMealsForAdmin: getAllMealsForAdmin2
+  getAllMealsForAdmin: getAllMealsForAdmin2,
+  DeviceryCharge
 };
 
 // src/app/utils/handleZodError.ts
@@ -1153,7 +1802,6 @@ var formatZodIssues = (error) => {
 // src/app/middleware/validateRequest.ts
 var validateRequest = (zodSchema) => {
   return (req, res, next) => {
-    console.log(zodSchema, "zod");
     if (req.body.data) {
       try {
         req.body = JSON.parse(req.body.data);
@@ -1165,6 +1813,7 @@ var validateRequest = (zodSchema) => {
       }
     }
     const parsedResult = zodSchema.safeParse(req.body);
+    console.log(parsedResult, "re");
     if (!parsedResult.success) {
       const zodmessage = formatZodIssues(parsedResult.error);
       return res.status(400).json({
@@ -1185,6 +1834,7 @@ var CreatemealData = z.object({
   description: z.string().optional(),
   image: z.string(),
   price: z.number(),
+  deliverycharge: z.number().optional(),
   isAvailable: z.boolean().optional(),
   dietaryPreference: z.enum([
     "HALAL",
@@ -1264,20 +1914,21 @@ var mealupdateStatus = z.object({
 // src/app/modules/meal/meal.route.ts
 var router = Router();
 router.get("/meals", mealController.Getallmeals);
+router.get("/deviveryCharge", mealController.DeviceryCharge);
 router.get("/admin/meals", auth_default([UserRoles.Admin]), mealController.getAllMealsForAdmin);
 router.get("/provider/meals/own", auth_default([UserRoles.Provider]), mealController.getownmeals);
 router.post("/provider/meal", auth_default([UserRoles.Provider]), validateRequest(CreatemealData), mealController.createMeal);
 router.delete("/provider/meal/:id", auth_default([UserRoles.Provider, UserRoles.Admin]), mealController.DeleteMeals);
 router.put("/provider/meal/:id", auth_default([UserRoles.Provider]), validateRequest(UpdatemealData), mealController.UpdateMeals);
 router.get("/meal/:id", mealController.GetSignlemeals);
-router.put("/admin/meal/:id", auth_default([UserRoles.Admin]), mealController.updateStatus);
+router.patch("/meal/:id", auth_default([UserRoles.Admin]), mealController.updateStatus);
 var mealRouter = { router };
 
 // src/app/modules/provider/provider.route.ts
 import { Router as Router2 } from "express";
 
 // src/app/modules/provider/provider.service.ts
-import status5 from "http-status";
+import status7 from "http-status";
 var createProvider = async (data, userId) => {
   const existinguser = await prisma.user.findUnique({ where: { id: userId } });
   if (!existinguser) {
@@ -1294,8 +1945,47 @@ var createProvider = async (data, userId) => {
   });
   return result;
 };
-var getAllProvider = async () => {
+var getAllProvider = async (query, isActive, page, limit, skip, sortBy, sortOrder, search) => {
+  console.log(search, "queary data");
+  const andConditions = [];
+  if (search || query) {
+    const orConditions = [];
+    orConditions.push({
+      restaurantName: {
+        contains: search,
+        mode: "insensitive"
+      }
+    });
+    orConditions.push({
+      address: {
+        contains: search,
+        mode: "insensitive"
+      }
+    });
+    orConditions.push({
+      description: {
+        contains: search,
+        mode: "insensitive"
+      }
+    });
+    if (orConditions.length > 0) {
+      andConditions.push({ OR: orConditions });
+    }
+  }
   const providers = await prisma.providerProfile.findMany({
+    where: {
+      AND: andConditions,
+      user: {
+        name: {
+          contains: search,
+          mode: "insensitive"
+        },
+        isActive,
+        email: query?.email
+      }
+    },
+    take: limit,
+    skip,
     include: {
       user: true,
       meals: {
@@ -1308,53 +1998,24 @@ var getAllProvider = async () => {
       createdAt: "desc"
     }
   });
-  let i = 0;
-  const userid = providers.map((p) => p.userId);
-  console.log(userid.length, "userid");
-  for (i = 0; i < userid.length; i++) {
-    console.log(userid.length, "leng");
-    console.log(i, "idss");
-    const ratings = await prisma.review.aggregate({
-      where: {
-        rating: {
-          gt: 0
-        },
-        parentId: null,
-        meal: {
-          provider: {
-            userId: userid[i]
-          }
-        }
-      },
-      _avg: {
-        rating: true
-      },
-      _count: {
-        rating: true
-      }
-    });
-    console.log(i, "id");
-    console.log(userid[i], "ratingdata");
-    const providerWithRating = providers.map((provider) => {
-      const totalReview = ratings._count.rating;
-      const averageRating = ratings._avg.rating;
-      return {
-        ...provider,
-        rating: {
-          totalReview,
-          averageRating
-        }
-      };
-    });
-    return providerWithRating;
-  }
+  const result = providers.map((provider) => {
+    const allReviews = provider.meals.flatMap((meal) => meal.reviews);
+    const totalReviews = allReviews.length;
+    const avgRating = totalReviews > 0 ? allReviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews : 0;
+    return {
+      ...provider,
+      totalReviews,
+      avgRating
+    };
+  });
+  return result;
 };
 var getProviderWithMeals = async (id) => {
   const existprovider = await prisma.providerProfile.findUnique({
     where: { id }
   });
   if (!existprovider) {
-    throw new AppError_default(status5.NOT_FOUND, "provider not found for this id");
+    throw new AppError_default(status7.NOT_FOUND, "provider not found for this id");
   }
   const provider = await prisma.providerProfile.findUnique({
     where: { id },
@@ -1371,7 +2032,7 @@ var getProviderWithMeals = async (id) => {
     }
   });
   if (!provider) {
-    throw new AppError_default(status5.NOT_FOUND, "provider not found for this id");
+    throw new AppError_default(status7.NOT_FOUND, "provider not found for this id");
   }
   const userid = provider.userId;
   const ratings = await prisma.review.groupBy({
@@ -1403,23 +2064,76 @@ var getProviderWithMeals = async (id) => {
   return {
     result: {
       ...provider,
-      totalReview: totalReview || 0,
-      averageRating: Number(averageRating.toFixed(1)) || 0
+      totalReviews: totalReview || 0,
+      avgRating: Number(averageRating.toFixed(1)) || 0
     }
   };
 };
-var UpateProviderProfile = async (data, userid) => {
+var getTopProviders = async () => {
+  const providers = await prisma.providerProfile.findMany({
+    include: {
+      user: {
+        select: {
+          name: true,
+          email: true,
+          image: true
+        }
+      },
+      meals: {
+        include: {
+          reviews: {
+            where: {
+              parentId: null,
+              status: "APPROVED"
+            }
+          }
+        }
+      }
+    }
+  });
+  const topProviders = providers.map((provider) => {
+    let totalRating = 0;
+    let totalReviews = 0;
+    provider.meals.forEach((meal) => {
+      meal.reviews.filter((review) => review.parentId == null).forEach((review) => {
+        if (typeof review.rating === "number") {
+          totalRating += review.rating;
+          totalReviews++;
+        }
+      });
+    });
+    const avgRating = totalReviews > 0 ? Number((totalRating / totalReviews).toFixed(1)) : 0;
+    return {
+      id: provider.id,
+      restaurantName: provider.restaurantName,
+      ownerName: provider.user?.name || "N/A",
+      email: provider.user?.email || "N/A",
+      address: provider.address,
+      description: provider.description,
+      image: provider.image || provider.user?.image || null,
+      totalReviews,
+      avgRating
+    };
+  }).sort((a, b) => {
+    if (b.avgRating !== a.avgRating) {
+      return b.avgRating - a.avgRating;
+    }
+    return b.totalReviews - a.totalReviews;
+  }).slice(0, 15);
+  return { topProviders };
+};
+var UpateProviderProfile = async (data, email) => {
   if (!data) {
-    throw new AppError_default(status5.BAD_REQUEST, "no data provided for update");
+    throw new AppError_default(status7.BAD_REQUEST, "no data provided for update");
   }
   const providerinfo = await prisma.user.findUnique({
-    where: { id: userid },
+    where: { email },
     include: {
       provider: true
     }
   });
   if (!providerinfo) {
-    throw new AppError_default(status5.NOT_FOUND, "user not found");
+    throw new AppError_default(status7.NOT_FOUND, "user not found");
   }
   const result = await prisma.providerProfile.update({
     where: { id: providerinfo.provider.id },
@@ -1436,11 +2150,12 @@ var providerService = {
   createProvider,
   getAllProvider,
   getProviderWithMeals,
-  UpateProviderProfile
+  UpateProviderProfile,
+  getTopProviders
 };
 
 // src/app/modules/provider/provider.controller.ts
-import status6 from "http-status";
+import status8 from "http-status";
 var createProvider2 = catchAsync(
   async (req, res) => {
     const user = req.user;
@@ -1449,7 +2164,7 @@ var createProvider2 = catchAsync(
     }
     const result = await providerService.createProvider(req.body, user.id);
     sendResponse(res, {
-      httpStatusCode: status6.CREATED,
+      httpStatusCode: status8.CREATED,
       success: true,
       message: "your provider profile has been created",
       data: result
@@ -1458,9 +2173,12 @@ var createProvider2 = catchAsync(
 );
 var gelAllprovider = catchAsync(
   async (req, res) => {
-    const result = await providerService.getAllProvider();
+    const { search } = req.query;
+    const isActive = req.query.isAvailable ? req.query.isActive === "true" ? true : req.query.isActive == "false" ? false : void 0 : void 0;
+    const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(req.query);
+    const result = await providerService.getAllProvider(req.query, isActive, page, limit, skip, sortBy, sortOrder, search);
     sendResponse(res, {
-      httpStatusCode: status6.OK,
+      httpStatusCode: status8.OK,
       success: true,
       message: "retrieve all provider successfully",
       data: result
@@ -1471,7 +2189,7 @@ var getProviderWithMeals2 = catchAsync(
   async (req, res) => {
     const result = await providerService.getProviderWithMeals(req.params.id);
     sendResponse(res, {
-      httpStatusCode: status6.OK,
+      httpStatusCode: status8.OK,
       success: true,
       message: "retrieve provider with meals successfully",
       data: result
@@ -1483,23 +2201,32 @@ var UpateProviderProfile2 = catchAsync(async (req, res) => {
   if (!user) {
     return res.status(401).json({ success: false, message: "you are unauthorized" });
   }
-  const result = await providerService.UpateProviderProfile(req.body, user.id);
+  const result = await providerService.UpateProviderProfile(req.body, user.email);
   if (!result) {
     sendResponse(res, {
-      httpStatusCode: status6.BAD_REQUEST,
+      httpStatusCode: status8.BAD_REQUEST,
       success: false,
       message: "update provider profile failed",
       data: result
     });
   }
   sendResponse(res, {
-    httpStatusCode: status6.OK,
+    httpStatusCode: status8.OK,
     success: true,
     message: "update provider profile successfully",
     data: result
   });
 });
-var providerController = { createProvider: createProvider2, gelAllprovider, getProviderWithMeals: getProviderWithMeals2, UpateProviderProfile: UpateProviderProfile2 };
+var getTopProviders2 = catchAsync(async (req, res) => {
+  const result = await providerService.getTopProviders();
+  sendResponse(res, {
+    httpStatusCode: status8.OK,
+    success: true,
+    message: "retrieve top providers successfully",
+    data: result
+  });
+});
+var providerController = { createProvider: createProvider2, gelAllprovider, getProviderWithMeals: getProviderWithMeals2, UpateProviderProfile: UpateProviderProfile2, getTopProviders: getTopProviders2 };
 
 // src/app/modules/provider/provider.validation.ts
 import z2 from "zod";
@@ -1519,92 +2246,232 @@ var UpdateproviderData = z2.object({
 // src/app/modules/provider/provider.route.ts
 var router2 = Router2();
 router2.post("/provider/profile", auth_default([UserRoles.Provider]), validateRequest(CreateproviderData), providerController.createProvider);
-router2.put("/providers/update", auth_default([UserRoles.Provider]), validateRequest(UpdateproviderData), providerController.UpateProviderProfile);
+router2.put("/provider/update", auth_default([UserRoles.Provider]), validateRequest(UpdateproviderData), providerController.UpateProviderProfile);
 router2.get("/providers", providerController.gelAllprovider);
 router2.get("/providers/:id", providerController.getProviderWithMeals);
+router2.get("/top-providers", providerController.getTopProviders);
 var providerRouter = { router: router2 };
 
 // src/app/modules/order/order.route.ts
 import { Router as Router3 } from "express";
 
 // src/app/modules/order/order.service.ts
-import status7 from "http-status";
-var CreateOrder = async (payload, customerId) => {
-  const mealId = payload.items.find((i) => i.mealId);
-  const existingmeals = await prisma.meal.findMany({
-    where: {
-      id: mealId?.mealId
-    }
+import { v6 as uuidv6 } from "uuid";
+import status9 from "http-status";
+
+// src/app/config/stripe.config.ts
+import Stripe from "stripe";
+var stripe = new Stripe(envVars.STRIPE.STRIPE_SECRET_KEY);
+
+// src/app/modules/order/order.service.ts
+var CreateOrder = async (payload, email) => {
+  const existingUser = await prisma.user.findUnique({ where: { email } });
+  if (!existingUser) throw new AppError_default(404, "User not found");
+  if (!payload.items?.length) {
+    throw new AppError_default(400, "Order items are required");
+  }
+  const customerId = existingUser.id;
+  const mealIds = payload.items.map((item) => item.mealId);
+  const meals = await prisma.meal.findMany({
+    where: { id: { in: mealIds } }
   });
-  const mealdata = existingmeals.find((meal) => meal.id == mealId?.mealId);
-  const orderexisting = await prisma.order.findMany({
-    where: {
-      customerId,
-      orderitem: {
-        some: {
-          mealId: mealId?.mealId
-        }
-      }
-    }
-  });
-  const existingOrder = orderexisting.filter((item, index) => item.status == "PLACED");
+  if (meals.length !== mealIds.length) {
+    throw new AppError_default(404, "One or more meals were not found");
+  }
+  const mealById = new Map(meals.map((meal) => [meal.id, meal]));
+  const providerIds = Array.from(new Set(meals.map((meal) => meal.providerId)));
+  if (providerIds.length !== 1) {
+    throw new AppError_default(
+      400,
+      "Single order supports meals from one provider only."
+    );
+  }
+  const providerId = providerIds[0];
+  const deliverycharge = Number(meals[0]?.deliverycharge ?? 0);
   try {
-    const result = await prisma.order.create({
-      data: {
-        customerId,
-        providerId: mealdata.providerId,
-        address: payload.address,
-        phone: payload.phone,
-        first_name: payload.first_name,
-        last_name: payload.last_name,
-        orderitem: {
-          createMany: {
-            data: payload.items.map((item) => ({
-              mealId: item.mealId,
-              price: mealdata.price,
-              quantity: item.quantity
-            }))
-          }
-        },
-        totalPrice: mealdata.price * payload.items.reduce((acc, item) => acc + item.quantity, 0) || 0
-      },
-      include: {
-        orderitem: {
-          include: {
-            meal: {
-              select: {
-                meals_name: true,
-                cuisine: true,
-                price: true
-              }
-            }
-          }
-        },
-        provider: true
-      }
-    });
-    if (result.orderitem.length == 0) {
-      await prisma.order.delete({
+    const result = await prisma.$transaction(async (tx) => {
+      const existingOrder = await tx.order.findMany({
         where: {
-          id: result.id
+          paymentStatus: "UNPAID"
         }
       });
-      throw new AppError_default(400, "order created failed");
-    }
+      if (existingOrder) {
+        await prisma.order.deleteMany({
+          where: {
+            id: {
+              in: existingOrder.map((item) => item.id)
+            }
+          }
+        });
+      }
+      const existingActiveOrder = await tx.order.findMany({
+        where: {
+          customerId,
+          providerId,
+          status: { in: ["PLACED", "PREPARING", "READY"] },
+          paymentStatus: "PAID"
+        },
+        include: {
+          orderitem: { include: { meal: true } }
+        }
+      });
+      console.log(existingActiveOrder, "ddd");
+      if (existingActiveOrder.length) {
+        throw new AppError_default(
+          409,
+          `You already have an active order for this provider. Existing mealIds: ${existingActiveOrder.map((order2) => order2.orderitem.map((item) => item.mealId))}`
+        );
+      }
+      const totalMealPrice = payload.items.reduce((sum, item) => {
+        const meal = mealById.get(item.mealId);
+        return sum + Number(meal?.price ?? 0) * item.quantity;
+      }, 0);
+      const order = await tx.order.create({
+        data: {
+          customerId,
+          providerId,
+          address: payload.address,
+          phone: payload.phone,
+          paymentStatus: deliverycharge > 0 ? "UNPAID" : "PAID",
+          totalPrice: totalMealPrice + deliverycharge,
+          first_name: payload.first_name ?? null,
+          last_name: payload.last_name ?? null,
+          orderitem: {
+            createMany: {
+              data: payload.items.map((item) => {
+                const meal = mealById.get(item.mealId);
+                return {
+                  mealId: item.mealId,
+                  price: Number(meal?.price ?? 0),
+                  quantity: item.quantity
+                };
+              })
+            }
+          }
+        }
+      });
+      if (deliverycharge === 0) {
+        return {
+          order,
+          payment: null,
+          paymentUrl: null,
+          message: "Order created successfully (no delivery charge)."
+        };
+      }
+      const payment = await tx.payment.create({
+        data: {
+          orderId: order.id,
+          amount: deliverycharge,
+          transactionId: String(uuidv6()),
+          status: "UNPAID",
+          userId: customerId,
+          mealId: payload.items[0].mealId
+        }
+      });
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ["card"],
+        mode: "payment",
+        line_items: [
+          {
+            price_data: {
+              currency: "bdt",
+              product_data: { name: "Delivery charge" },
+              unit_amount: deliverycharge * 100
+            },
+            quantity: 1
+          }
+        ],
+        metadata: {
+          orderId: order.id,
+          paymentId: payment.id
+        },
+        payment_intent_data: {
+          metadata: {
+            orderId: order.id,
+            paymentId: payment.id
+          }
+        },
+        success_url: `${envVars.FRONTEND_URL}/payment/${order.id}?paymentId=${payment.id}`,
+        cancel_url: `${envVars.FRONTEND_URL}/payment/${order.id}?paymentId=${payment.id}`
+      });
+      return {
+        order,
+        payment,
+        paymentUrl: session.url,
+        message: "Order created successfully. Please complete payment from checkout URL."
+      };
+    });
     return result;
   } catch (error) {
-    throw new AppError_default(500, "something went wrong,please try again");
+    console.error(error);
+    if (error instanceof AppError_default) throw error;
+    throw new AppError_default(500, "Failed to create order. Please try again.");
   }
 };
-var getOwnmealsOrder = async (userid) => {
+var getOwnmealsOrder = async (email, data, page, limit, skip, sortBy, sortOrder, search) => {
   const existingUser = await prisma.user.findUnique({
-    where: { id: userid },
+    where: { email },
     include: { provider: true }
   });
+  if (!existingUser) {
+    return {
+      success: false,
+      message: "User not found",
+      result: null
+    };
+  }
+  const andConditions = [];
+  if (search) {
+    const orConditions = [];
+    orConditions.push(
+      {
+        first_name: {
+          contains: search,
+          mode: "insensitive"
+        }
+      },
+      {
+        last_name: {
+          contains: search,
+          mode: "insensitive"
+        }
+      }
+    );
+    if (orConditions.length > 0) {
+      andConditions.push({ OR: orConditions });
+    }
+  }
+  if (data?.status) {
+    andConditions.push({
+      status: {
+        equals: data.status
+      }
+    });
+  }
+  if (data?.paymentStatus) {
+    andConditions.push({
+      paymentStatus: {
+        equals: data.paymentStatus
+      }
+    });
+  }
+  if (data?.totalPrice) {
+    andConditions.push({
+      totalPrice: {
+        gte: 0,
+        lte: Number(data.price)
+      }
+    });
+  }
+  if (data?.createdAt) {
+    const dateRange = parseDateForPrisma(data.createdAt);
+    andConditions.push({ createdAt: dateRange.gte });
+  }
   if (existingUser?.role == "Customer") {
     const result = await prisma.order.findMany({
       where: {
-        customerId: userid
+        customerId: existingUser.id,
+        AND: andConditions
       },
       include: {
         orderitem: {
@@ -1625,8 +2492,11 @@ var getOwnmealsOrder = async (userid) => {
   }
   if (existingUser?.role == "Provider") {
     const result = await prisma.order.findMany({
+      take: limit,
+      skip,
       where: {
-        providerId: existingUser.provider?.id
+        providerId: existingUser.provider?.id,
+        AND: andConditions
       },
       include: {
         orderitem: {
@@ -1636,15 +2506,54 @@ var getOwnmealsOrder = async (userid) => {
         }
       }
     });
+    let total = 0;
+    if (existingUser?.role === "Provider") {
+      total = await prisma.order.count({
+        where: {
+          providerId: existingUser.provider?.id,
+          AND: andConditions
+        }
+      });
+    } else if (existingUser?.role === "Customer") {
+      total = await prisma.order.count({
+        where: {
+          customerId: existingUser.id,
+          AND: andConditions
+        }
+      });
+    }
     return {
-      success: true,
-      message: `your own meals orders retrieve successfully`,
-      result
+      result,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalpage: Math.ceil(total / (limit || 1))
+      }
     };
   }
 };
+var getOwnPaymentService = async (id, email) => {
+  const user = await prisma.user.findUnique({
+    where: { email }
+  });
+  if (!user) {
+    throw new AppError_default(404, "User not found");
+  }
+  const userId = user.id;
+  const orderres = await prisma.order.findMany({
+    where: {
+      customerId: userId,
+      id
+    },
+    include: {
+      payment: { select: { id: true, amount: true, status: true, transactionId: true, user: true } }
+    }
+  });
+  return orderres;
+};
 var UpdateOrderStatus = async (id, data, role) => {
-  const { status: status19 } = data;
+  const { status: status21 } = data;
   const statusValue = [
     "PLACED",
     "PREPARING",
@@ -1652,20 +2561,20 @@ var UpdateOrderStatus = async (id, data, role) => {
     "DELIVERED",
     "CANCELLED"
   ];
-  if (!statusValue.includes(status19)) {
+  if (!statusValue.includes(status21)) {
     throw new AppError_default(400, "invalid status value");
   }
   const existingOrder = await prisma.order.findUnique({ where: { id } });
   if (!existingOrder) {
     throw new AppError_default(404, "no order found for this id");
   }
-  if (existingOrder?.status == status19) {
-    throw new AppError_default(409, `order already ${status19}`);
+  if (existingOrder?.status == status21) {
+    throw new AppError_default(409, `order already ${status21}`);
   }
-  if (role == "Customer" && status19 !== "CANCELLED") {
+  if (role == "Customer" && status21 !== "CANCELLED") {
     throw new AppError_default(400, "Customer can only change status to CANCELLED");
   }
-  if (role == "Customer" && status19 == "CANCELLED") {
+  if (role == "Customer" && status21 == "CANCELLED") {
     if (existingOrder?.status == "DELIVERED" || existingOrder?.status == "PREPARING" || existingOrder?.status == "READY") {
       throw new AppError_default(
         400,
@@ -1677,22 +2586,22 @@ var UpdateOrderStatus = async (id, data, role) => {
         id
       },
       data: {
-        status: status19
+        status: status21
       }
     });
     return result;
   }
-  if (role == "Provider" && status19 === "CANCELLED") {
-    return "CANCELLED only Customer Change";
+  if (role == "Provider" && status21 === "CANCELLED") {
+    throw new AppError_default(400, "CANCELLED only Customer Change");
   }
   if (role == "Provider") {
-    if (status19 == "PLACED" || status19 == "PREPARING" || status19 == "READY" || status19 == "DELIVERED") {
+    if (status21 == "PLACED" || status21 == "PREPARING" || status21 == "READY" || status21 == "DELIVERED") {
       const result = await prisma.order.update({
         where: {
           id
         },
         data: {
-          status: status19
+          status: status21
         }
       });
       return {
@@ -1705,7 +2614,7 @@ var UpdateOrderStatus = async (id, data, role) => {
 };
 var getAllorder = async (role) => {
   if (role !== "Admin") {
-    return "view all order only Admin";
+    throw new AppError_default(403, "View all orders is only allowed for Admin users.");
   }
   const result = await prisma.order.findMany({
     include: {
@@ -1729,7 +2638,7 @@ var customerOrderStatusTrack = async (mealid, userid) => {
     }
   });
   if (existingOrder.length === 0) {
-    throw new AppError_default(status7.NOT_FOUND, "no order found for this meal");
+    throw new AppError_default(status9.NOT_FOUND, "no order found for this meal");
   }
   console.log(existingOrder, "data");
   return {
@@ -1738,21 +2647,21 @@ var customerOrderStatusTrack = async (mealid, userid) => {
     result: existingOrder
   };
 };
-var CustomerRunningAndOldOrder = async (userid, status19) => {
+var CustomerRunningAndOldOrder = async (userid, status21) => {
   const andConditions = [];
   let message = "customer running and old order retrieve successfully";
-  let currentStatus = status19;
-  if (status19 == "DELIVERED") {
-    andConditions.push({ status: status19 });
-    message = "Recent order information retrieved successfully.", currentStatus = status19;
+  let currentStatus = status21;
+  if (status21 == "DELIVERED") {
+    andConditions.push({ status: status21 });
+    message = "Recent order information retrieved successfully.", currentStatus = status21;
   }
-  if (status19 == "CANCELLED") {
-    andConditions.push({ status: status19 });
-    message = "CANCELLED order information retrieved successfully.", currentStatus = status19;
+  if (status21 == "CANCELLED") {
+    andConditions.push({ status: status21 });
+    message = "CANCELLED order information retrieved successfully.", currentStatus = status21;
   }
-  if (status19 == "PLACED" || status19 == "PREPARING" || status19 == "READY") {
-    andConditions.push({ status: status19 });
-    message = "running order retrieved successfully.", currentStatus = status19;
+  if (status21 == "PLACED" || status21 == "PREPARING" || status21 == "READY") {
+    andConditions.push({ status: status21 });
+    message = "running order retrieved successfully.", currentStatus = status21;
   }
   const result = await prisma.order.findMany({
     where: {
@@ -1785,7 +2694,7 @@ var getSingleOrder = async (id) => {
     }
   });
   if (!result) {
-    throw new AppError_default(status7.NOT_FOUND, "no order found for this id");
+    throw new AppError_default(status9.NOT_FOUND, "no order found for this id");
   }
   return {
     success: true,
@@ -1800,20 +2709,21 @@ var ServiceOrder = {
   getAllorder,
   customerOrderStatusTrack,
   CustomerRunningAndOldOrder,
-  getSingleOrder
+  getSingleOrder,
+  getOwnPaymentService
 };
 
 // src/app/modules/order/order.controller.ts
-import status8 from "http-status";
+import status10 from "http-status";
 var createOrder = catchAsync(
   async (req, res) => {
     const user = req.user;
     if (!user) {
-      return res.status(status8.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+      return res.status(status10.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
     }
-    const result = await ServiceOrder.CreateOrder(req.body, user.id);
+    const result = await ServiceOrder.CreateOrder(req.body, user.email);
     sendResponse(res, {
-      httpStatusCode: status8.CREATED,
+      httpStatusCode: status10.CREATED,
       success: true,
       message: "your order has been created successfully",
       data: result
@@ -1822,26 +2732,28 @@ var createOrder = catchAsync(
 );
 var getOwnmealsOrder2 = catchAsync(async (req, res) => {
   const user = req.user;
+  const { search } = req.query;
   if (!user) {
-    return res.status(status8.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+    return res.status(status10.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
   }
-  const result = await ServiceOrder.getOwnmealsOrder(user.id);
+  const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(req.query);
+  const result = await ServiceOrder.getOwnmealsOrder(user.email, req.query, page, limit, skip, sortBy, sortOrder, search);
   sendResponse(res, {
-    httpStatusCode: status8.OK,
-    success: result?.success,
-    message: result?.message,
-    data: result?.result
+    httpStatusCode: status10.OK,
+    success: true,
+    message: "your own meals orders retrieve successfully",
+    data: result
   });
 });
 var UpdateOrderStatus2 = catchAsync(
   async (req, res) => {
     const user = req.user;
     if (!user) {
-      return res.status(status8.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+      return res.status(status10.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
     }
     const result = await ServiceOrder.UpdateOrderStatus(req.params.id, req.body, user.role);
     sendResponse(res, {
-      httpStatusCode: status8.OK,
+      httpStatusCode: status10.OK,
       success: true,
       message: "update order status successfully",
       data: result
@@ -1852,19 +2764,19 @@ var getAllOrder = catchAsync(
   async (req, res) => {
     const user = req.user;
     if (!user) {
-      return res.status(status8.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+      return res.status(status10.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
     }
     const result = await ServiceOrder.getAllorder(user.role);
     if (!result) {
       sendResponse(res, {
-        httpStatusCode: status8.BAD_REQUEST,
+        httpStatusCode: status10.BAD_REQUEST,
         success: false,
         message: "retrieve all orders failed",
         data: result
       });
     }
     sendResponse(res, {
-      httpStatusCode: status8.OK,
+      httpStatusCode: status10.OK,
       success: true,
       message: "retrieve all orders successfully",
       data: result
@@ -1880,14 +2792,14 @@ var customerOrderStatusTrack2 = catchAsync(
     const result = await ServiceOrder.customerOrderStatusTrack(req.params.id, users.id);
     if (!result?.success) {
       sendResponse(res, {
-        httpStatusCode: status8.BAD_REQUEST,
+        httpStatusCode: status10.BAD_REQUEST,
         success: false,
         message: result?.message,
         data: result?.result
       });
     }
     sendResponse(res, {
-      httpStatusCode: status8.OK,
+      httpStatusCode: status10.OK,
       success: true,
       message: "customer order status track successfully",
       data: result?.result
@@ -1898,19 +2810,19 @@ var CustomerRunningAndOldOrder2 = catchAsync(
   async (req, res) => {
     const user = req.user;
     if (!user) {
-      return res.status(status8.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+      return res.status(status10.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
     }
     const result = await ServiceOrder.CustomerRunningAndOldOrder(user.id, req.query.status);
     if (!result.success) {
       sendResponse(res, {
-        httpStatusCode: status8.BAD_REQUEST,
+        httpStatusCode: status10.BAD_REQUEST,
         success: false,
         message: "customer order status track failed",
         data: result?.result
       });
     }
     sendResponse(res, {
-      httpStatusCode: status8.OK,
+      httpStatusCode: status10.OK,
       success: true,
       message: result.message,
       data: result?.result
@@ -1925,17 +2837,27 @@ var getSingleOrder2 = catchAsync(async (req, res) => {
   const result = await ServiceOrder.getSingleOrder(req.params.id);
   if (!result.success) {
     sendResponse(res, {
-      httpStatusCode: status8.BAD_REQUEST,
+      httpStatusCode: status10.BAD_REQUEST,
       success: false,
       message: "retrieve single order failed",
-      data: result?.result
+      data: result
     });
   }
   sendResponse(res, {
-    httpStatusCode: status8.OK,
+    httpStatusCode: status10.OK,
     success: true,
     message: "retrieve single order successfully",
     data: result?.result
+  });
+});
+var getOwnPayment = catchAsync(async (req, res) => {
+  const email = req.user?.email;
+  const result = await ServiceOrder.getOwnPaymentService(req.params.id, email);
+  sendResponse(res, {
+    httpStatusCode: status10.OK,
+    success: true,
+    message: "Fetched own payment participants successfully",
+    data: result
   });
 });
 var OrderController = {
@@ -1945,7 +2867,8 @@ var OrderController = {
   getAllOrder,
   customerOrderStatusTrack: customerOrderStatusTrack2,
   CustomerRunningAndOldOrder: CustomerRunningAndOldOrder2,
-  getSingleOrder: getSingleOrder2
+  getSingleOrder: getSingleOrder2,
+  getOwnPayment
 };
 
 // src/app/modules/order/order.validation.ts
@@ -1972,13 +2895,22 @@ router3.get("/orders/all", auth_default([UserRoles.Admin]), OrderController.getA
 router3.get("/orders", auth_default([UserRoles.Customer, UserRoles.Provider]), OrderController.getOwnmealsOrder);
 router3.patch("/provider/orders/:id", auth_default([UserRoles.Provider, UserRoles.Customer]), OrderController.UpdateOrderStatus);
 router3.get("/orders/:id", auth_default([UserRoles.Customer]), OrderController.getSingleOrder);
+router3.get("/order/:id/own-payment", auth_default([UserRoles.Customer]), OrderController.getOwnPayment);
 var OrderRouter = { router: router3 };
 
 // src/app/modules/category/category.route.ts
 import { Router as Router4 } from "express";
 
 // src/app/modules/category/category.service.ts
-var CreateCategory = async (data, adminId) => {
+import status11 from "http-status";
+var CreateCategory = async (data, email) => {
+  const adminUser = await prisma.user.findUnique({
+    where: { email }
+  });
+  if (!adminUser) {
+    throw new AppError_default(status11.UNAUTHORIZED, "Admin user not found or unauthorized");
+  }
+  const adminId = adminUser.id;
   const categorydata = await prisma.category.findUnique({
     where: {
       name: data.name
@@ -1998,8 +2930,39 @@ var CreateCategory = async (data, adminId) => {
   });
   return result;
 };
-var getCategory = async () => {
+var getCategory = async (data, page, limit, skip) => {
+  console.log(data?.name, "dsfdsf");
+  const andConditions = [];
+  if (data?.name) {
+    andConditions.push({
+      name: data.name
+    });
+  }
+  if (data?.createdAt) {
+    const dateRange = parseDateForPrisma(data.createdAt);
+    andConditions.push({ createdAt: dateRange.gte });
+  }
+  if (data?.adminId) {
+    andConditions.push({
+      adminId: {
+        contains: data.adminId,
+        mode: "insensitive"
+      }
+    });
+  }
+  if (data?.id) {
+    andConditions.push({
+      id: {
+        contains: data.id,
+        mode: "insensitive"
+      }
+    });
+  }
+  console.log(andConditions, "sdfsdfsdfsf");
   const result = await prisma.category.findMany({
+    where: {
+      AND: andConditions
+    },
     include: {
       meals: {
         where: {
@@ -2010,7 +2973,18 @@ var getCategory = async () => {
     },
     orderBy: { name: "desc" }
   });
-  return result;
+  const total = await prisma.category.count({ where: {
+    AND: andConditions
+  } });
+  return {
+    result,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalpage: Math.ceil(total / limit) || 1
+    }
+  };
 };
 var SingleCategory = async (id) => {
   const result = await prisma.category.findFirstOrThrow({
@@ -2024,6 +2998,29 @@ var SingleCategory = async (id) => {
       user: true
     }
   });
+  if (result && Array.isArray(result.meals)) {
+    result.meals = result.meals.map((meal) => {
+      let totalRating = 0;
+      let totalReviews = 0;
+      if (Array.isArray(meal.reviews)) {
+        meal.reviews = meal.reviews.filter(
+          (review) => review.status === "APPROVED" && review.parentId === null || typeof review.status === "undefined"
+        );
+        meal.reviews.forEach((review) => {
+          if ((review.status === "APPROVED" || typeof review.status === "undefined") && typeof review.rating === "number") {
+            totalRating += review.rating;
+            totalReviews++;
+          }
+        });
+      }
+      const avgRating = totalReviews > 0 ? Number((totalRating / totalReviews).toFixed(1)) : 0;
+      return {
+        ...meal,
+        avgRating,
+        totalReviews
+      };
+    });
+  }
   return result;
 };
 var UpdateCategory = async (id, data) => {
@@ -2060,19 +3057,19 @@ var categoryService = {
 };
 
 // src/app/modules/category/category.controller.ts
-import { status as status9 } from "http-status";
+import { status as status12 } from "http-status";
 var CreateCategory2 = catchAsync(
   async (req, res) => {
     const user = req.user;
     if (!user) {
-      return res.status(status9.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+      return res.status(status12.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
     }
     const result = await categoryService.CreateCategory(
       req.body,
-      user.id
+      user.email
     );
     sendResponse(res, {
-      httpStatusCode: status9.CREATED,
+      httpStatusCode: status12.CREATED,
       success: true,
       message: "your category has been created",
       data: result
@@ -2080,9 +3077,12 @@ var CreateCategory2 = catchAsync(
   }
 );
 var getCategory2 = catchAsync(async (req, res) => {
-  const result = await categoryService.getCategory();
+  const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(
+    req.query
+  );
+  const result = await categoryService.getCategory(req.query, page, limit, skip);
   sendResponse(res, {
-    httpStatusCode: status9.OK,
+    httpStatusCode: status12.OK,
     success: true,
     message: "retrieve category successfully",
     data: result
@@ -2091,7 +3091,7 @@ var getCategory2 = catchAsync(async (req, res) => {
 var SingleCategory2 = catchAsync(async (req, res) => {
   const result = await categoryService.SingleCategory(req.params.id);
   sendResponse(res, {
-    httpStatusCode: status9.OK,
+    httpStatusCode: status12.OK,
     success: true,
     message: "retrieve single category successfully",
     data: result
@@ -2103,7 +3103,7 @@ var UpdateCategory2 = catchAsync(async (req, res) => {
     req.body
   );
   sendResponse(res, {
-    httpStatusCode: status9.OK,
+    httpStatusCode: status12.OK,
     success: true,
     message: "your category has beed changed",
     data: result
@@ -2112,7 +3112,7 @@ var UpdateCategory2 = catchAsync(async (req, res) => {
 var DeleteCategory2 = catchAsync(async (req, res) => {
   const result = await categoryService.DeleteCategory(req.params.id);
   sendResponse(res, {
-    httpStatusCode: status9.OK,
+    httpStatusCode: status12.OK,
     success: true,
     message: "your category has beed deleted",
     data: result
@@ -2150,12 +3150,17 @@ var CategoryRouter = { router: router4 };
 import { Router as Router5 } from "express";
 
 // src/app/modules/user/user.service.ts
-import status10 from "http-status";
+import status13 from "http-status";
 var GetAllUsers = async (data) => {
   const andCondition = [];
   if (typeof data.data?.email == "string") {
     andCondition.push({
       email: data.data?.email
+    });
+  }
+  if (typeof data.data?.name == "string") {
+    andCondition.push({
+      name: data.data?.name
     });
   }
   if (typeof data.data?.phone == "string") {
@@ -2182,7 +3187,8 @@ var GetAllUsers = async (data) => {
       AND: andCondition
     },
     include: {
-      provider: true
+      provider: true,
+      accounts: true
     },
     orderBy: {
       [data.sortBy]: data.sortOrder
@@ -2196,7 +3202,7 @@ var GetAllUsers = async (data) => {
   return {
     data: result,
     pagination: {
-      totalusers,
+      total: totalusers,
       page: data.page,
       limit: data.limit,
       totalpage: Math.ceil(totalusers / data.limit) || 1
@@ -2208,7 +3214,7 @@ var getUserprofile = async (id) => {
     where: { id }
   });
   if (!user) {
-    throw new AppError_default(status10.NOT_FOUND, "user not found for this id");
+    throw new AppError_default(status13.NOT_FOUND, "user not found for this id");
   }
   if (user.role !== "Provider") {
     return user;
@@ -2241,12 +3247,12 @@ var getUserprofile = async (id) => {
     averageRating: Number(averageRating.toFixed(1)) || 0
   };
 };
-var UpateUserProfile = async (data, userid) => {
+var UpateUserProfile = async (data, email) => {
   if (!data) {
     throw new AppError_default(400, "your data isn't found,please provide a information");
   }
   const userinfo = await prisma.user.findUnique({
-    where: { id: userid },
+    where: { email },
     include: {
       accounts: true
     }
@@ -2256,7 +3262,7 @@ var UpateUserProfile = async (data, userid) => {
   }
   const isCustomer = userinfo.role == "Customer";
   const result = await prisma.user.update({
-    where: { id: userid },
+    where: { email },
     data: {
       name: data.name,
       image: data.image,
@@ -2266,7 +3272,7 @@ var UpateUserProfile = async (data, userid) => {
       ...isCustomer ? {} : { email: data.email },
       accounts: {
         updateMany: {
-          where: { userId: userid },
+          where: { userId: userinfo.id },
           data: {
             password: data.password
           }
@@ -2329,7 +3335,7 @@ var UserService = {
 };
 
 // src/app/modules/user/user.controller.ts
-import status11 from "http-status";
+import status14 from "http-status";
 var GetAllUsers2 = catchAsync(async (req, res) => {
   const search = req.query;
   const { isActive } = req.query;
@@ -2347,7 +3353,7 @@ var GetAllUsers2 = catchAsync(async (req, res) => {
     sortOrder
   });
   sendResponse(res, {
-    httpStatusCode: status11.OK,
+    httpStatusCode: status14.OK,
     success: true,
     message: "retrieve all users has been successfully",
     data: result
@@ -2356,11 +3362,11 @@ var GetAllUsers2 = catchAsync(async (req, res) => {
 var getUserprofile2 = catchAsync(async (req, res) => {
   const user = req.user;
   if (!user) {
-    return res.status(status11.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+    return res.status(status14.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
   }
   const result = await UserService.getUserprofile(req.params.id);
   sendResponse(res, {
-    httpStatusCode: status11.OK,
+    httpStatusCode: status14.OK,
     success: true,
     message: user.role !== "Provider" ? "your user profile has been retrieved successfully" : "your user profile has been retrieved successfully",
     data: result
@@ -2373,10 +3379,10 @@ var UpateUserProfile2 = catchAsync(async (req, res) => {
   }
   const result = await UserService.UpateUserProfile(
     req.body,
-    user.id
+    user.email
   );
   sendResponse(res, {
-    httpStatusCode: status11.OK,
+    httpStatusCode: status14.OK,
     success: true,
     message: "your profile has been updated successfully",
     data: result
@@ -2393,7 +3399,7 @@ var UpdateUser2 = catchAsync(
       req.body
     );
     sendResponse(res, {
-      httpStatusCode: status11.OK,
+      httpStatusCode: status14.OK,
       success: true,
       message: `user change successfully`,
       data: result
@@ -2408,7 +3414,7 @@ var DeleteUserProfile2 = catchAsync(
     }
     const result = await UserService.DeleteUserProfile(req.params.id);
     sendResponse(res, {
-      httpStatusCode: status11.OK,
+      httpStatusCode: status14.OK,
       success: true,
       message: "user account delete successfully",
       data: result
@@ -2422,7 +3428,7 @@ var OwnProfileDelete2 = catchAsync(async (req, res) => {
   }
   const result = await UserService.OwnProfileDelete(user.id);
   sendResponse(res, {
-    httpStatusCode: status11.OK,
+    httpStatusCode: status14.OK,
     success: true,
     message: "user own account delete successfully",
     data: result
@@ -2562,7 +3568,7 @@ var getReviewByid = async (reviewid) => {
   return result;
 };
 var moderateReview = async (id, data) => {
-  const { status: status19 } = data;
+  const { status: status21 } = data;
   const reviewData = await prisma.review.findUnique({
     where: {
       id
@@ -2583,25 +3589,82 @@ var moderateReview = async (id, data) => {
       id
     },
     data: {
-      status: status19
+      status: status21
     }
   });
   return result;
 };
-var getAllreviews = async () => {
+var getAllreviews = async (data, page, limit, skip, sortBy, sortOrder, search) => {
+  const andConditions = [];
+  if (search) {
+    const orConditions = [];
+    orConditions.push(
+      {
+        comment: {
+          contains: search,
+          mode: "insensitive"
+        }
+      }
+    );
+    if (orConditions.length > 0) {
+      andConditions.push({ OR: orConditions });
+    }
+  }
+  if (data?.createdAt) {
+    const dateRange = parseDateForPrisma(data.createdAt);
+    andConditions.push({ createdAt: dateRange.gte });
+  }
+  if (data?.rating) {
+    andConditions.push({
+      rating: {
+        equals: data.rating
+      }
+    });
+  }
+  if (data?.parentId) {
+    andConditions.push({
+      parentId: {
+        equals: data.parentId
+      }
+    });
+  }
+  if (data?.status) {
+    andConditions.push({
+      status: {
+        equals: data.status
+      }
+    });
+  }
   const result = await prisma.review.findMany({
+    take: limit,
+    skip,
+    where: {
+      AND: andConditions
+    },
     include: {
       customer: true,
       meal: true,
       replies: true
     }
   });
+  const total = await prisma.review.count({ where: {
+    AND: andConditions
+  } });
+  return {
+    result,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalpage: Math.ceil(total / limit) || 1
+    }
+  };
   return result;
 };
 var ReviewsService = { CreateReviews, updateReview, deleteReview, getReviewByid, moderateReview, getAllreviews };
 
 // src/app/modules/reviews/reviews.controller.ts
-import status12 from "http-status";
+import status15 from "http-status";
 var CreateReviews2 = catchAsync(async (req, res) => {
   const user = req.user;
   if (!user) {
@@ -2609,7 +3672,7 @@ var CreateReviews2 = catchAsync(async (req, res) => {
   }
   const result = await ReviewsService.CreateReviews(user.id, req.params.id, req.body);
   sendResponse(res, {
-    httpStatusCode: status12.CREATED,
+    httpStatusCode: status15.CREATED,
     success: true,
     message: "your review has been created successfully",
     data: result
@@ -2623,7 +3686,7 @@ var updateReview2 = catchAsync(async (req, res) => {
   const { reviewid } = req.params;
   const result = await ReviewsService.updateReview(reviewid, req.body, user?.id);
   sendResponse(res, {
-    httpStatusCode: status12.OK,
+    httpStatusCode: status15.OK,
     success: true,
     message: "review update successfully",
     data: result
@@ -2638,7 +3701,7 @@ var deleteReview2 = catchAsync(
     const { reviewid } = req.params;
     const result = await ReviewsService.deleteReview(reviewid, user?.id);
     sendResponse(res, {
-      httpStatusCode: status12.OK,
+      httpStatusCode: status15.OK,
       success: true,
       message: "review delete successfully",
       data: result
@@ -2649,7 +3712,7 @@ var moderateReview2 = catchAsync(async (req, res) => {
   const { reviewid } = req.params;
   const result = await ReviewsService.moderateReview(reviewid, req.body);
   sendResponse(res, {
-    httpStatusCode: status12.OK,
+    httpStatusCode: status15.OK,
     success: true,
     message: "review moderate successfully",
     data: result
@@ -2660,7 +3723,7 @@ var getReviewByid2 = catchAsync(
     const { reviewid } = req.params;
     const result = await ReviewsService.getReviewByid(reviewid);
     sendResponse(res, {
-      httpStatusCode: status12.OK,
+      httpStatusCode: status15.OK,
       success: true,
       message: "retrieve review by id successfully",
       data: result
@@ -2669,9 +3732,13 @@ var getReviewByid2 = catchAsync(
 );
 var getAllreviews2 = catchAsync(
   async (req, res) => {
-    const result = await ReviewsService.getAllreviews();
+    const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(
+      req.query
+    );
+    const { search } = req.query;
+    const result = await ReviewsService.getAllreviews(req.query, page, limit, skip, sortBy, sortOrder, search);
     sendResponse(res, {
-      httpStatusCode: status12.OK,
+      httpStatusCode: status15.OK,
       success: true,
       message: "retrieve all reviews successfully",
       data: result
@@ -2764,17 +3831,17 @@ var tokenUtils = {
 };
 
 // src/app/modules/auth/auth.service.ts
-import status13 from "http-status";
+import status16 from "http-status";
 var getCurrentUser = async (email) => {
   const user = await prisma.user.findUnique({
     where: { email },
     include: { provider: true }
   });
   if (!user) {
-    throw new AppError_default(status13.NOT_FOUND, "User not found");
+    throw new AppError_default(status16.NOT_FOUND, "User not found");
   }
   if (!user.isActive) {
-    throw new AppError_default(status13.UNAUTHORIZED, "User account is not active");
+    throw new AppError_default(status16.UNAUTHORIZED, "User account is not active");
   }
   return user;
 };
@@ -2789,51 +3856,59 @@ var signoutUser = async (sessionToken) => {
     message: `current user signout successfully`
   };
 };
-var signup = async (payload) => {
-  const { name, email, password, phone, image } = payload;
+var signup = async (data) => {
+  const {
+    name,
+    email,
+    password,
+    image,
+    phone,
+    role,
+    restaurantName,
+    address,
+    description
+  } = data;
   const userExist = await prisma.user.findUnique({
     where: { email }
   });
   if (!image) {
-    throw new AppError_default(status13.BAD_REQUEST, "Image is required to register a user.");
+    throw new AppError_default(
+      status16.BAD_REQUEST,
+      "Image is required to register a user."
+    );
   }
   if (userExist) {
-    throw new AppError_default(409, "user already exist,please try another email");
+    throw new AppError_default(status16.CONFLICT, "Email already in use");
   }
-  const data = await auth.api.signUpEmail({
+  const result = await auth.api.signUpEmail({
     body: {
       name,
       email,
       password,
+      image,
       phone,
-      image
+      role
     }
   });
-  console.log(data, "data");
-  if (!data.user) {
-    throw new AppError_default(400, "User register failed");
+  if (data.role === "Provider") {
+    await prisma.providerProfile.create({
+      data: {
+        userId: result.user.id,
+        restaurantName,
+        address,
+        description
+      }
+    });
   }
-  const accessToken = tokenUtils.getAccessToken({
-    userId: data.user.id,
-    role: data.user.role,
-    name: data.user.name,
-    email: data.user.email,
-    status: data.user.status,
-    emailVerified: data.user.emailVerified
-  });
-  const refreshToken = tokenUtils.getRefreshToken({
-    userId: data.user.id,
-    role: data.user.role,
-    name: data.user.name,
-    email: data.user.email,
-    status: data.user.status,
-    emailVerified: data.user.emailVerified
+  await auth.api.signInEmail({
+    body: {
+      email: data.email,
+      password: data.password
+    }
   });
   return {
-    ...data,
-    token: data.token,
-    accessToken,
-    refreshToken
+    ...result.user,
+    token: result.token
   };
 };
 var signin = async (data) => {
@@ -2852,7 +3927,7 @@ var signin = async (data) => {
     }
   });
   if (result.user.status === "suspend") {
-    throw new AppError_default(status13.UNAUTHORIZED, "User is suspend");
+    throw new AppError_default(status16.UNAUTHORIZED, "User is suspend");
   }
   const accessToken = tokenUtils.getAccessToken({
     userId: result.user.id,
@@ -2886,11 +3961,14 @@ var getNewToken = async (refreshToken, sessionToken) => {
     }
   });
   if (!isSessionTokenExists) {
-    throw new AppError_default(status13.UNAUTHORIZED, "Invalid session token");
+    throw new AppError_default(status16.UNAUTHORIZED, "Invalid session token");
   }
-  const verifiedRefreshToken = jwtUtils.verifyToken(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+  const verifiedRefreshToken = jwtUtils.verifyToken(
+    refreshToken,
+    process.env.REFRESH_TOKEN_SECRET
+  );
   if (!verifiedRefreshToken.success && verifiedRefreshToken.error) {
-    throw new AppError_default(status13.UNAUTHORIZED, "Invalid refresh token");
+    throw new AppError_default(status16.UNAUTHORIZED, "Invalid refresh token");
   }
   const data = verifiedRefreshToken.data;
   const newAccessToken = tokenUtils.getAccessToken({
@@ -2926,6 +4004,135 @@ var getNewToken = async (refreshToken, sessionToken) => {
   };
 };
 var verifyEmail = async (email, otp) => {
+  const data = await auth.api.verifyEmailOTP({
+    body: {
+      email,
+      otp
+    }
+  });
+  if (data.status && !data.user.emailVerified) {
+    await prisma.user.update({
+      where: {
+        email
+      },
+      data: {
+        emailVerified: true
+      }
+    });
+  }
+};
+var sendOtp = async (email) => {
+  const user = await prisma.user.findUnique({
+    where: {
+      email
+    }
+  });
+  if (!user) {
+    throw new AppError_default(status16.NOT_FOUND, "User not found");
+  }
+  if (user.status === "suspend") {
+    throw new AppError_default(status16.NOT_FOUND, "your are suspend");
+  }
+  if (user.emailVerified) {
+    throw new AppError_default(status16.BAD_REQUEST, "Email already verified");
+  }
+  const result = await auth.api.sendVerificationOTP({
+    body: {
+      email,
+      // required
+      type: "email-verification"
+    }
+  });
+  return result;
+};
+var forgetPassword = async (email) => {
+  const isUserExist = await prisma.user.findUnique({
+    where: {
+      email
+    }
+  });
+  if (!isUserExist) {
+    throw new AppError_default(status16.NOT_FOUND, "User not found");
+  }
+  if (isUserExist.status == "suspend") {
+    throw new AppError_default(status16.NOT_FOUND, "your account is suspend");
+  }
+  await auth.api.requestPasswordResetEmailOTP({
+    body: {
+      email
+    }
+  });
+};
+var resetPassword = async (email, otp, newPassword) => {
+  console.log(email, otp, newPassword, "passwrd");
+  const isUserExist = await prisma.user.findUnique({
+    where: {
+      email
+    }
+  });
+  if (!isUserExist) {
+    throw new AppError_default(status16.NOT_FOUND, "User not found");
+  }
+  if (isUserExist.status == "suspend") {
+    throw new AppError_default(status16.NOT_FOUND, "your account is suspend");
+  }
+  await auth.api.resetPasswordEmailOTP({
+    body: {
+      email,
+      otp,
+      password: newPassword
+    }
+  });
+  await prisma.session.deleteMany({
+    where: {
+      userId: isUserExist.id
+    }
+  });
+};
+var changePassword = async (payload, sessionToken) => {
+  const session = await auth.api.getSession({
+    headers: new Headers({
+      Authorization: `Bearer ${sessionToken}`
+    })
+  });
+  if (!session) {
+    throw new AppError_default(status16.UNAUTHORIZED, "Invalid session token");
+  }
+  const { currentPassword, newPassword } = payload;
+  const result = await auth.api.changePassword({
+    body: {
+      currentPassword,
+      newPassword,
+      revokeOtherSessions: true
+    },
+    headers: new Headers({
+      Authorization: `Bearer ${sessionToken}`
+    })
+  });
+  if (!result) {
+    throw new AppError_default(400, "user change password failed");
+  }
+  const accessToken = tokenUtils.getAccessToken({
+    userId: session.user.id,
+    role: session.user.role,
+    name: session.user.name,
+    email: session.user.email,
+    status: session.user.status,
+    emailVerified: session.user.emailVerified
+  });
+  const refreshToken = tokenUtils.getRefreshToken({
+    userId: session.user.id,
+    role: session.user.role,
+    name: session.user.name,
+    email: session.user.email,
+    status: session.user.status,
+    emailVerified: session.user.emailVerified
+  });
+  return {
+    ...result,
+    accessToken,
+    refreshToken
+  };
 };
 var authService = {
   getCurrentUser,
@@ -2933,11 +4140,15 @@ var authService = {
   signup,
   signin,
   getNewToken,
-  verifyEmail
+  verifyEmail,
+  sendOtp,
+  forgetPassword,
+  resetPassword,
+  changePassword
 };
 
 // src/app/modules/auth/auth.controller.ts
-import status14 from "http-status";
+import status17 from "http-status";
 var getCurrentUser2 = catchAsync(async (req, res) => {
   const user = req.user;
   if (!user) {
@@ -2945,7 +4156,7 @@ var getCurrentUser2 = catchAsync(async (req, res) => {
   }
   const result = await authService.getCurrentUser(user.email);
   sendResponse(res, {
-    httpStatusCode: status14.OK,
+    httpStatusCode: status17.OK,
     success: true,
     message: "retrieve current user successsfully",
     data: result
@@ -2970,7 +4181,7 @@ var signoutUser2 = catchAsync(async (req, res) => {
     sameSite: "none"
   });
   sendResponse(res, {
-    httpStatusCode: status14.OK,
+    httpStatusCode: status17.OK,
     success: true,
     message: "User logged out successfully",
     data: result
@@ -2978,16 +4189,14 @@ var signoutUser2 = catchAsync(async (req, res) => {
 });
 var signup2 = catchAsync(async (req, res) => {
   const payload = {
-    ...req.body,
-    image: req.file?.path || req.body.image
+    ...req.body
   };
-  console.log(payload, "apy");
   const result = await authService.signup(payload);
   if (!result) {
     return res.status(400).json({ success: false, message: "Signup failed" });
   }
   sendResponse(res, {
-    httpStatusCode: status14.CREATED,
+    httpStatusCode: status17.CREATED,
     success: true,
     message: "user signup successfully",
     data: result
@@ -3001,7 +4210,7 @@ var signin2 = catchAsync(async (req, res) => {
   tokenUtils.setRefreshTokenCookie(res, refreshToken);
   tokenUtils.setBetterAuthSessionCookie(res, token);
   sendResponse(res, {
-    httpStatusCode: status14.OK,
+    httpStatusCode: status17.OK,
     success: true,
     message: "user signin successfully",
     data: result
@@ -3012,7 +4221,7 @@ var getNewToken2 = catchAsync(
     const refreshToken = req.cookies.refreshToken;
     const betterAuthSessionToken = req.cookies["better-auth.session_token"];
     if (!refreshToken) {
-      throw new AppError_default(status14.UNAUTHORIZED, "Refresh token is missing");
+      throw new AppError_default(status17.UNAUTHORIZED, "Refresh token is missing");
     }
     const result = await authService.getNewToken(refreshToken, betterAuthSessionToken);
     const { accessToken, refreshToken: newRefreshToken, sessionToken } = result;
@@ -3020,7 +4229,7 @@ var getNewToken2 = catchAsync(
     tokenUtils.setRefreshTokenCookie(res, newRefreshToken);
     tokenUtils.setBetterAuthSessionCookie(res, sessionToken);
     sendResponse(res, {
-      httpStatusCode: status14.OK,
+      httpStatusCode: status17.OK,
       success: true,
       message: "New tokens generated successfully",
       data: {
@@ -3035,9 +4244,54 @@ var verifyEmail2 = catchAsync(async (req, res) => {
   const { email, otp } = req.body;
   await authService.verifyEmail(email, otp);
   sendResponse(res, {
-    httpStatusCode: status14.OK,
+    httpStatusCode: status17.OK,
     success: true,
     message: "Email verified successfully"
+  });
+});
+var sendOtp2 = catchAsync(async (req, res) => {
+  const { email } = req.body;
+  await authService.sendOtp(email);
+  sendResponse(res, {
+    httpStatusCode: status17.OK,
+    success: true,
+    message: "OTP sent to email successfully"
+  });
+});
+var forgetPassword2 = catchAsync(async (req, res) => {
+  const { email } = req.body;
+  await authService.forgetPassword(email);
+  sendResponse(res, {
+    httpStatusCode: status17.OK,
+    success: true,
+    message: "Password reset OTP sent to email successfully"
+  });
+});
+var resetPassword2 = catchAsync(async (req, res) => {
+  const { email, otp, newPassword } = req.body;
+  await authService.resetPassword(email, otp, newPassword);
+  sendResponse(res, {
+    httpStatusCode: status17.OK,
+    success: true,
+    message: "Password reset successfully"
+  });
+});
+var changePassword2 = catchAsync(async (req, res) => {
+  const payload = req.body;
+  const betterAuthSessionToken = req.cookies["better-auth.session_token"];
+  const result = await authService.changePassword(
+    payload,
+    betterAuthSessionToken
+  );
+  const { accessToken, refreshToken, token } = result;
+  tokenUtils.setAccessTokenCookie(res, accessToken);
+  tokenUtils.setRefreshTokenCookie(res, refreshToken);
+  tokenUtils.setBetterAuthSessionCookie(res, token);
+  sendResponse(res, {
+    httpStatusCode: status17.OK,
+    success: true,
+    message: "Password changed successfully",
+    data: result
   });
 });
 var authController = {
@@ -3046,7 +4300,11 @@ var authController = {
   signup: signup2,
   signin: signin2,
   getNewToken: getNewToken2,
-  verifyEmail: verifyEmail2
+  verifyEmail: verifyEmail2,
+  sendOtp: sendOtp2,
+  forgetPassword: forgetPassword2,
+  resetPassword: resetPassword2,
+  changePassword: changePassword2
 };
 
 // src/app/modules/auth/auth.validation.ts
@@ -3075,437 +4333,222 @@ var updateValidation = z7.object({
   description: z7.string().optional()
 });
 
-// src/app/config/multer.config.ts
-import multer from "multer";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
-
-// src/app/config/cloudinary.config.ts
-import { v2 as cloudinary } from "cloudinary";
-
-// src/app/config/env.ts
-import dotenv from "dotenv";
-import status15 from "http-status";
-dotenv.config();
-var loadEnvVariables = () => {
-  const requireEnvVariable = [
-    "DATABASE_URL",
-    "BETTER_AUTH_SECRET",
-    "BETTER_AUTH_URL",
-    "FRONTEND_URL",
-    "PORT",
-    "ACCESS_TOKEN_SECRET",
-    "REFRESH_TOKEN_SECRET",
-    "ACCESS_TOKEN_EXPIRES_IN",
-    "REFRESH_TOKEN_EXPIRES_IN",
-    "APP_USER",
-    "APP_PASS",
-    "EMAIL",
-    "PASSWORD",
-    "GOOGLE_CLIENT_ID",
-    "GOOGLE_CLIENT_SECRET",
-    "NODE_ENV",
-    "CLOUDINARY_CLOUD_NAME",
-    "CLOUDINARY_API_KEY",
-    "CLOUDINARY_API_SECRET"
-  ];
-  requireEnvVariable.forEach((variable) => {
-    if (!process.env[variable]) {
-      throw new AppError_default(
-        status15.INTERNAL_SERVER_ERROR,
-        `Server configuration error: The required environment variable "${variable}" is not set. Verify your .env file or deployment environment settings.`
-      );
-    }
-  });
-  return {
-    DATABASE_URL: process.env.DATABASE_URL,
-    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET,
-    BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
-    FRONTEND_URL: process.env.FRONTEND_URL,
-    PORT: process.env.PORT,
-    ACCESS_TOKEN_SECRET: process.env.ACCESS_TOKEN_SECRET,
-    REFRESH_TOKEN_SECRET: process.env.REFRESH_TOKEN_SECRET,
-    ACCESS_TOKEN_EXPIRES_IN: process.env.ACCESS_TOKEN_EXPIRES_IN,
-    REFRESH_TOKEN_EXPIRES_IN: process.env.REFRESH_TOKEN_EXPIRES_IN,
-    APP_USER: process.env.APP_USER,
-    APP_PASS: process.env.APP_PASS,
-    EMAIL: process.env.EMAIL,
-    PASSWORD: process.env.PASSWORD,
-    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
-    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
-    NODE_ENV: process.env.NODE_ENV,
-    CLOUDINARY: {
-      CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME,
-      CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY,
-      CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET
-    }
-  };
-};
-var envVars = loadEnvVariables();
-
-// src/app/config/cloudinary.config.ts
-import status16 from "http-status";
-cloudinary.config({
-  cloud_name: envVars.CLOUDINARY.CLOUDINARY_CLOUD_NAME,
-  api_key: envVars.CLOUDINARY.CLOUDINARY_API_KEY,
-  api_secret: envVars.CLOUDINARY.CLOUDINARY_API_SECRET,
-  secure: true,
-  timeout: 6e4
-});
-var cloudinaryUpload = cloudinary;
-
-// src/app/config/multer.config.ts
-var storage = new CloudinaryStorage({
-  cloudinary: cloudinaryUpload,
-  params: async (req, file) => {
-    const originalName = file.originalname;
-    const extension = originalName.split(".").pop()?.toLocaleLowerCase();
-    const fileNameWithoutExtension = originalName.split(".").slice(0, -1).join(".").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
-    const uniqueName = Math.random().toString(36).substring(2) + "-" + Date.now() + "-" + fileNameWithoutExtension;
-    const folder = extension === "pdf" ? "pdfs" : "images";
-    return {
-      folder: `foodhub/${folder}`,
-      public_id: uniqueName,
-      resource_type: "auto",
-      format: extension === "pdf" ? "pdf" : "webp",
-      // ইমেজ হলে অটোমেটিক webp হবে (ফাইল সাইজ কমায়)
-      transformation: extension !== "pdf" ? [{ quality: "auto", fetch_format: "auto" }] : void 0
-    };
-  }
-});
-var multerUpload = multer({ storage, limits: {
-  fileSize: 1024 * 1024
-} });
-
 // src/app/modules/auth/auth.route.ts
 var router7 = Router7();
 router7.get("/me", auth_default([UserRoles.Admin, UserRoles.Customer, UserRoles.Provider]), authController.getCurrentUser);
 router7.post("/logout", auth_default([UserRoles.Admin, UserRoles.Customer, UserRoles.Provider]), authController.signoutUser);
-router7.post("/register", multerUpload.single("file"), validateRequest(createUserSchema), authController.signup);
+router7.post("/register", validateRequest(createUserSchema), authController.signup);
 router7.post("/login", authController.signin);
+router7.post("/change-password", auth_default([UserRoles.Admin, UserRoles.Provider, UserRoles.Customer]), authController.changePassword);
 router7.post("/refresh-token", authController.getNewToken);
 router7.post("/verify-email", authController.verifyEmail);
+router7.post("/send-otp", authController.sendOtp);
+router7.post("/forget-password", authController.forgetPassword);
+router7.post("/reset-password", authController.resetPassword);
 var authRouter = { router: router7 };
 
 // src/app/modules/stats/stats.route.ts
 import express from "express";
 
 // src/app/modules/stats/stats.controller.ts
-import status18 from "http-status";
+import status19 from "http-status";
 
 // src/app/modules/stats/stats.service.ts
-import status17 from "http-status";
+import status18 from "http-status";
 var getDashboardStatsData = async (user) => {
-  const existuser = await prisma.user.findUnique({
-    where: {
-      email: user.email
-    }
+  const userExists = await prisma.user.findUnique({
+    where: { email: user.email }
   });
-  if (!existuser) {
-    throw new AppError_default(status17.UNAUTHORIZED, "User does not exist or is unauthorized");
+  if (!userExists) {
+    throw new AppError_default(status18.NOT_FOUND, "User does not exist");
   }
   let statsData;
   switch (user.role) {
-    case "Admin":
-      statsData = getAdminStats(existuser.id);
+    case Role.Admin:
+      statsData = getAdminDashboardStats();
       break;
-    case "Provider":
-      statsData = getProviderStats(existuser.id);
+    case Role.Provider:
+      statsData = getProviderDashboardStats(userExists.id);
       break;
     default:
-      throw new AppError_default(status17.BAD_REQUEST, "Invalid user role");
+      throw new AppError_default(status18.BAD_REQUEST, "Invalid user role");
   }
   return statsData;
 };
-var getAdminStats = async (adminId) => {
-  const existuser = await prisma.user.findUniqueOrThrow({
-    where: { id: adminId }
-  });
-  if (existuser.id !== adminId) {
-    throw new Error("you are unauthorize");
+var getAdminDashboardStats = async () => {
+  try {
+    const counts = await prisma.$transaction([
+      prisma.meal.count(),
+      prisma.user.count(),
+      prisma.order.count(),
+      prisma.review.count()
+      // prisma.payment.count(),
+    ]);
+    const [mealsCount, userCount, orderCount, reviewCount] = counts;
+    const [approvedmeals, pendingmeals, rejectedmeals] = await Promise.all([
+      prisma.meal.count({ where: { status: "APPROVED" } }),
+      prisma.meal.count({ where: { status: "PENDING" } }),
+      prisma.meal.count({ where: { status: "REJECTED" } })
+    ]);
+    const [cancelledorder, deliveredorder, placedorder, preparingorder, readyorder] = await Promise.all([
+      prisma.order.count({ where: { status: "CANCELLED" } }),
+      prisma.order.count({ where: { status: "DELIVERED" } }),
+      prisma.order.count({ where: { status: "PLACED" } }),
+      prisma.order.count({ where: { status: "PREPARING" } }),
+      prisma.order.count({ where: { status: "READY" } })
+    ]);
+    const revenueResult = await prisma.payment.aggregate({
+      _sum: { amount: true },
+      where: { status: PaymentStatus.PAID }
+    });
+    const totalRevenue = revenueResult._sum.amount ?? 0;
+    const payments = await prisma.payment.findMany({
+      where: { status: PaymentStatus.PAID },
+      select: { amount: true, createdAt: true }
+    });
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthlyRevenue = {};
+    payments.forEach((payment) => {
+      const month = payment.createdAt.getMonth();
+      monthlyRevenue[month] = (monthlyRevenue[month] || 0) + Number(payment.amount);
+    });
+    const barChartData = monthNames.map((month, idx) => ({
+      month,
+      revenue: monthlyRevenue[idx] ?? 0
+    }));
+    return {
+      counts: {
+        mealsCount,
+        orderCount,
+        reviewCount,
+        userCount
+      },
+      totalRevenue,
+      monthlyRevenue: barChartData,
+      order: {
+        cancelledorder,
+        deliveredorder,
+        placedorder,
+        preparingorder,
+        readyorder
+      },
+      mealStatus: {
+        approvedmeals,
+        pendingmeals,
+        rejectedmeals
+      }
+      // pieChartData,
+    };
+  } catch (error) {
+    console.error("Failed to fetch admin dashboard stats:", error);
+    throw new Error("Could not fetch dashboard stats");
   }
-  return {
-    userStats: await getUserStatsInternal(),
-    mealStats: await getMealStatsInternal(),
-    orderStats: await getOrderStatsInternal(),
-    revenueStats: await getRevenueStatsInternal(),
-    reviewStats: await getReviewStatsInternal(),
-    categoryStats: await getCategoryStatsInternal()
-  };
 };
-var getProviderStats = async (userId) => {
-  const existuser = await prisma.user.findUniqueOrThrow({
-    where: { id: userId },
-    include: {
-      provider: { select: { id: true } }
-    }
-  });
-  if (existuser.id !== userId) {
-    throw new Error("you are unauthorize");
+var getProviderDashboardStats = async (userId) => {
+  try {
+    const counts = await prisma.$transaction([
+      prisma.meal.count({
+        where: {
+          provider: {
+            userId
+          }
+        }
+      }),
+      prisma.order.count({
+        where: {
+          provider: {
+            userId
+          }
+        }
+      })
+    ]);
+    const [mealsCount, orderCount] = counts;
+    const [approvedmeals, pendingmeals, rejectedmeals] = await Promise.all([
+      prisma.meal.count({ where: { provider: {
+        userId
+      }, status: "APPROVED" } }),
+      prisma.meal.count({ where: { provider: {
+        userId
+      }, status: "PENDING" } }),
+      prisma.meal.count({ where: { provider: {
+        userId
+      }, status: "REJECTED" } })
+    ]);
+    const [cancelledorder, deliveredorder, placedorder, preparingorder, readyorder] = await Promise.all([
+      prisma.order.count({ where: { provider: {
+        userId
+      }, status: "CANCELLED" } }),
+      prisma.order.count({ where: { provider: {
+        userId
+      }, status: "DELIVERED" } }),
+      prisma.order.count({ where: { provider: {
+        userId
+      }, status: "PLACED" } }),
+      prisma.order.count({ where: { provider: {
+        userId
+      }, status: "PREPARING" } }),
+      prisma.order.count({ where: { provider: {
+        userId
+      }, status: "READY" } })
+    ]);
+    const revenueResult = await prisma.payment.aggregate({
+      _sum: { amount: true },
+      where: { userId, status: PaymentStatus.PAID }
+    });
+    const totalRevenue = revenueResult._sum.amount ?? 0;
+    const payments = await prisma.payment.findMany({
+      where: { userId, status: PaymentStatus.PAID },
+      select: { amount: true, createdAt: true }
+    });
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const monthlyRevenue = {};
+    payments.forEach((payment) => {
+      const month = payment.createdAt.getMonth();
+      monthlyRevenue[month] = (monthlyRevenue[month] || 0) + Number(payment.amount);
+    });
+    const barChartData = monthNames.map((month, idx) => ({
+      month,
+      revenue: monthlyRevenue[idx] ?? 0
+    }));
+    return {
+      counts: {
+        mealsCount,
+        orderCount
+      },
+      totalRevenue,
+      monthlyRevenue: barChartData,
+      mealStatus: {
+        approvedmeals,
+        pendingmeals,
+        rejectedmeals
+      },
+      order: {
+        cancelledorder,
+        deliveredorder,
+        placedorder,
+        preparingorder,
+        readyorder
+      }
+    };
+  } catch (error) {
+    console.error("Failed to fetch user dashboard stats:", error);
+    throw new Error("Could not fetch user dashboard stats");
   }
-  return {
-    revenueStats: await getProviderRevenueInternal(existuser.provider.id),
-    mealStats: await getProviderMealInternal(existuser.provider.id),
-    orderStats: await getProviderOrderInternal(existuser.provider.id)
-  };
 };
-var getUserStatsInternal = async () => {
-  return prisma.$transaction(async (tx) => {
-    const startOfToday = /* @__PURE__ */ new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const endOfToday = /* @__PURE__ */ new Date();
-    endOfToday.setHours(23, 59, 59, 999);
-    const startOfMonth = /* @__PURE__ */ new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-    const endOfMonth = /* @__PURE__ */ new Date();
-    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
-    endOfMonth.setDate(0);
-    endOfMonth.setHours(23, 59, 59, 999);
-    const [
-      totalUsers,
-      totalSuspendUser,
-      totalActivateUser,
-      totalAdmin,
-      totalCustomer,
-      totalprovider,
-      todaystats,
-      oneMonthago,
-      totalemailvarified,
-      totalactiveusers,
-      totalunactiveuser
-    ] = await Promise.all([
-      tx.user.count(),
-      tx.user.count({ where: { status: "suspend" } }),
-      tx.user.count({ where: { status: "activate" } }),
-      tx.user.count({ where: { role: "Admin" } }),
-      tx.user.count({ where: { role: "Customer" } }),
-      tx.user.count({ where: { role: "Provider" } }),
-      tx.user.count({ where: { createdAt: { gte: startOfToday, lte: endOfToday } } }),
-      tx.user.count({ where: { createdAt: { gte: startOfMonth, lte: endOfMonth } } }),
-      tx.user.count({ where: { emailVerified: false } }),
-      tx.user.count({ where: { isActive: true } }),
-      tx.user.count({ where: { isActive: false } })
-    ]);
-    return {
-      totalUsers,
-      totalSuspendUser,
-      totalActivateUser,
-      totalAdmin,
-      totalCustomer,
-      totalprovider,
-      todaystats,
-      oneMonthago,
-      totalemailvarified,
-      totalactiveusers,
-      totalunactiveuser
-    };
-  });
-};
-var getMealStatsInternal = async () => {
-  return prisma.$transaction(async (tx) => {
-    const [
-      totalmeals,
-      totalavailabemeals,
-      totalunavailabemeals,
-      totalapprovedmeals,
-      totalpendingmeals,
-      totalrejectedmeals
-    ] = await Promise.all([
-      tx.meal.count(),
-      tx.meal.count({ where: { isAvailable: true } }),
-      tx.meal.count({ where: { isAvailable: false } }),
-      tx.meal.count({ where: { status: "APPROVED" } }),
-      tx.meal.count({ where: { status: "PENDING" } }),
-      tx.meal.count({ where: { status: "REJECTED" } })
-    ]);
-    return {
-      totalmeals,
-      totalavailabemeals,
-      totalunavailabemeals,
-      totalapprovedmeals,
-      totalpendingmeals,
-      totalrejectedmeals
-    };
-  });
-};
-var getOrderStatsInternal = async () => {
-  return prisma.$transaction(async (tx) => {
-    const startOfToday = /* @__PURE__ */ new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const endOfToday = /* @__PURE__ */ new Date();
-    endOfToday.setHours(23, 59, 59, 999);
-    const startOfMonth = /* @__PURE__ */ new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-    const endOfMonth = /* @__PURE__ */ new Date();
-    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
-    endOfMonth.setDate(0);
-    endOfMonth.setHours(23, 59, 59, 999);
-    const [
-      totalorders,
-      oneMonth,
-      totalcancelledmeals,
-      totalplacedmeals,
-      totalpreparingmeals,
-      totalreadymeals,
-      totaldeliveredmeals,
-      allearn,
-      totalquantity,
-      todayorders
-    ] = await Promise.all([
-      tx.order.count(),
-      tx.order.count({ where: { createdAt: { gte: startOfMonth, lte: endOfMonth } } }),
-      tx.order.count({ where: { status: "CANCELLED" } }),
-      tx.order.count({ where: { status: "PLACED" } }),
-      tx.order.count({ where: { status: "PREPARING" } }),
-      tx.order.count({ where: { status: "READY" } }),
-      tx.order.count({ where: { status: "DELIVERED" } }),
-      tx.order.aggregate({ _sum: { totalPrice: true } }),
-      tx.orderitem.aggregate({ _sum: { quantity: true } }),
-      tx.order.count({ where: { createdAt: { gte: startOfToday, lte: endOfToday } } })
-    ]);
-    return {
-      totalorders,
-      oneMonth,
-      totalcancelledmeals,
-      totalplacedmeals,
-      totalpreparingmeals,
-      totalreadymeals,
-      totaldeliveredmeals,
-      allearn,
-      totalquantity,
-      todayorders
-    };
-  });
-};
-var getRevenueStatsInternal = async () => {
-  return prisma.$transaction(async (tx) => {
-    const startOfToday = /* @__PURE__ */ new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const endOfToday = /* @__PURE__ */ new Date();
-    endOfToday.setHours(23, 59, 59, 999);
-    const startOfMonth = /* @__PURE__ */ new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-    const endOfMonth = /* @__PURE__ */ new Date();
-    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
-    endOfMonth.setDate(0);
-    endOfMonth.setHours(23, 59, 59, 999);
-    const [totalrevenue, todaysRevenue, monthlyRevenue, avgrevenue, topProvidersrevenue] = await Promise.all([
-      tx.order.aggregate({ _sum: { totalPrice: true } }),
-      tx.order.aggregate({
-        _sum: { totalPrice: true },
-        where: { createdAt: { gte: startOfToday, lte: endOfToday } }
-      }),
-      tx.order.aggregate({
-        _sum: { totalPrice: true },
-        where: { createdAt: { gte: startOfMonth, lte: endOfMonth } }
-      }),
-      tx.order.aggregate({ _avg: { totalPrice: true } }),
-      tx.order.groupBy({
-        by: ["providerId"],
-        orderBy: { _sum: { totalPrice: "desc" } },
-        take: 5
-      })
-    ]);
-    return {
-      totalrevenue,
-      todaysRevenue,
-      monthlyRevenue,
-      avgrevenue,
-      topProvidersrevenue
-    };
-  });
-};
-var getReviewStatsInternal = async () => {
-  return prisma.$transaction(async (tx) => {
-    const startOfToday = /* @__PURE__ */ new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const endOfToday = /* @__PURE__ */ new Date();
-    endOfToday.setHours(23, 59, 59, 999);
-    const [totalreviews, todayreviews, topRatedMeals] = await Promise.all([
-      tx.review.count(),
-      tx.review.count({ where: { createdAt: { gte: startOfToday, lte: endOfToday } } }),
-      tx.review.groupBy({
-        by: ["mealId"],
-        _avg: { rating: true },
-        orderBy: { _avg: { rating: "desc" } },
-        take: 4
-      })
-    ]);
-    return {
-      totalreviews,
-      todayreviews,
-      topRatedMeals
-    };
-  });
-};
-var getCategoryStatsInternal = async () => {
-  return prisma.$transaction(async (tx) => {
-    const [totalcategory, totalcategory_name, mealsPerCategory] = await Promise.all([
-      tx.category.count(),
-      tx.category.findMany({ select: { name: true } }),
-      tx.meal.groupBy({
-        by: ["category_name"],
-        _count: { _all: true }
-      })
-    ]);
-    return {
-      totalcategory,
-      totalcategory_name,
-      mealsPerCategory
-    };
-  });
-};
-var getProviderRevenueInternal = async (providerId) => {
-  return prisma.$transaction(async (tx) => {
-    const [totalrevenue] = await Promise.all([
-      tx.order.aggregate({
-        where: { providerId },
-        _sum: { totalPrice: true }
-      })
-    ]);
-    return { totalrevenue };
-  });
-};
-var getProviderMealInternal = async (providerId) => {
-  return prisma.$transaction(async (tx) => {
-    const [totalmeals, totalavailabemeals, totalunavailabemeals] = await Promise.all([
-      tx.meal.count({ where: { providerId } }),
-      tx.meal.count({ where: { providerId, isAvailable: true } }),
-      tx.meal.count({ where: { providerId, isAvailable: false } })
-    ]);
-    return {
-      totalmeals,
-      totalavailabemeals,
-      totalunavailabemeals
-    };
-  });
-};
-var getProviderOrderInternal = async (providerId) => {
-  return prisma.$transaction(async (tx) => {
-    const [totalorders] = await Promise.all([
-      tx.order.count({ where: { providerId } })
-    ]);
-    return { totalorders };
-  });
-};
-var StatsService = {
-  getDashboardStatsData
-};
+var statsService = { getDashboardStatsData };
 
 // src/app/modules/stats/stats.controller.ts
 var getDashboardStatsData2 = catchAsync(async (req, res) => {
   const user = req.user;
   if (!user) {
-    return res.status(status18.UNAUTHORIZED).json({
+    return res.status(status19.UNAUTHORIZED).json({
       success: false,
       message: "you are unauthorized"
     });
   }
-  const result = await StatsService.getDashboardStatsData(user);
+  const result = await statsService.getDashboardStatsData(user);
   sendResponse(res, {
-    httpStatusCode: status18.OK,
+    httpStatusCode: status19.OK,
     success: true,
     message: "Stats data retrieved successfully!",
     data: result
@@ -3536,8 +4579,240 @@ router9.use("/v1", StatsRoutes);
 router9.use("/v1/auth", authRouter.router);
 var IndexRouter = router9;
 
+// src/app/modules/payment/payment.controller.ts
+import status20 from "http-status";
+
+// src/app/modules/payment/payment.service.ts
+var deleteParticipantAndPayment = async (participantId, paymentId) => {
+  if (!participantId || !paymentId) {
+    console.error("Missing participantId or paymentId in session metadata");
+    return;
+  }
+  await prisma.$transaction(async (tx) => {
+    await tx.payment.deleteMany({
+      where: { id: paymentId }
+    });
+    await tx.order.deleteMany({
+      where: { id: participantId }
+    });
+  });
+  console.log(
+    `Payment failed. Deleted participant ${participantId} and payment ${paymentId}`
+  );
+};
+var cleanupAllUnpaidPayments = async () => {
+  const unpaidPayments = await prisma.payment.findMany({
+    where: { status: PaymentStatus.UNPAID },
+    select: { id: true, orderId: true }
+  });
+  if (!unpaidPayments.length) {
+    return { deletedPayments: 0, deletedParticipants: 0 };
+  }
+  const paymentIds = unpaidPayments.map((p) => p.id);
+  const orderIds = unpaidPayments.map((p) => p.orderId);
+  const [deletedPayments, deletedParticipants] = await prisma.$transaction([
+    prisma.payment.deleteMany({
+      where: { id: { in: paymentIds } }
+    }),
+    prisma.order.deleteMany({
+      where: { id: { in: orderIds } }
+    })
+  ]);
+  return {
+    deletedPayments: deletedPayments.count,
+    deletedParticipants: deletedParticipants.count
+  };
+};
+var handlerStripeWebhookEvent = async (event) => {
+  const existingPayment = await prisma.payment.findFirst({
+    where: {
+      stripeEventId: event.id
+    }
+  });
+  if (existingPayment) {
+    console.log(`Event ${event.id} already processed. Skipping`);
+    return { message: `Event ${event.id} already processed. Skipping` };
+  }
+  switch (event.type) {
+    case "checkout.session.completed": {
+      const session = event.data.object;
+      const orderId = session.metadata?.orderId;
+      const paymentId = session.metadata?.paymentId;
+      if (!orderId || !paymentId) {
+        console.error("Missing appointmentId or paymentId in session metadata");
+        return {
+          message: "Missing appointmentId or paymentId in session metadata"
+        };
+      }
+      const order = await prisma.order.findUnique({
+        where: {
+          id: orderId
+        }
+      });
+      if (!order) {
+        console.error(`order with id ${orderId} not found`);
+        return { message: `order with id ${orderId} not found` };
+      }
+      if (session.payment_status !== "paid") {
+        await deleteParticipantAndPayment(orderId, paymentId);
+        await cleanupAllUnpaidPayments();
+        break;
+      }
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({
+          where: {
+            id: orderId
+          },
+          data: {
+            paymentStatus: PaymentStatus.PAID
+          }
+        });
+        await tx.payment.update({
+          where: {
+            id: paymentId
+          },
+          data: {
+            stripeEventId: event.id,
+            status: PaymentStatus.PAID,
+            paymentGatewayData: session
+          }
+        });
+      });
+      console.log(
+        `Processed checkout.session.completed for order ${orderId} and payment ${paymentId}`
+      );
+      break;
+    }
+    case "checkout.session.expired": {
+      const session = event.data.object;
+      const orderId = session.metadata?.orderId;
+      const paymentId = session.metadata?.paymentId;
+      await deleteParticipantAndPayment(orderId, paymentId);
+      await cleanupAllUnpaidPayments();
+      break;
+    }
+    case "payment_intent.succeeded": {
+      const session = event.data.object;
+      console.log(
+        `Payment intent ${session.id} succeeded.`
+      );
+      break;
+    }
+    case "payment_intent.payment_failed": {
+      const session = event.data.object;
+      const orderId = session.metadata?.orderId;
+      const paymentId = session.metadata?.paymentId;
+      await deleteParticipantAndPayment(orderId, paymentId);
+      await cleanupAllUnpaidPayments();
+      break;
+    }
+    case "checkout.session.async_payment_failed": {
+      const session = event.data.object;
+      const orderId = session.metadata?.orderId;
+      const paymentId = session.metadata?.paymentId;
+      await deleteParticipantAndPayment(orderId, paymentId);
+      await cleanupAllUnpaidPayments();
+      break;
+    }
+    case "payment_intent.canceled": {
+      const session = event.data.object;
+      const orderId = session.metadata?.orderId;
+      const paymentId = session.metadata?.paymentId;
+      await deleteParticipantAndPayment(orderId, paymentId);
+      await cleanupAllUnpaidPayments();
+      break;
+    }
+    default:
+      console.log(`Unhandled event type ${event.type}`);
+  }
+  return { message: `Webhook Event ${event.id} processed successfully` };
+};
+var PaymentService = {
+  handlerStripeWebhookEvent
+};
+
+// src/app/modules/payment/payment.controller.ts
+var handleStripeWebhookEvent = catchAsync(async (req, res) => {
+  const signature = req.headers["stripe-signature"];
+  const webhookSecret = envVars.STRIPE.STRIPE_WEBHOOK_SECRET;
+  fetch("http://127.0.0.1:7268/ingest/0e44685c-8c68-4e88-86ca-8c289d1bed8b", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Debug-Session-Id": "20e4f1"
+    },
+    body: JSON.stringify({
+      sessionId: "20e4f1",
+      runId: "pre-fix",
+      location: "payment.controller.ts:entry",
+      message: "Webhook request received",
+      data: {
+        hasSignature: Boolean(signature),
+        bodyIsBuffer: Buffer.isBuffer(req.body),
+        contentType: req.headers["content-type"],
+        webhookSecretPrefix: webhookSecret?.slice(0, 10)
+      },
+      hypothesisId: "H2_H3_H4",
+      timestamp: Date.now()
+    })
+  }).catch(() => {
+  });
+  if (!signature || !webhookSecret) {
+    console.error("Missing Stripe signature or webhook secret");
+    return res.status(status20.BAD_REQUEST).json({ message: "Missing Stripe signature or webhook secret" });
+  }
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, signature, webhookSecret);
+  } catch (error) {
+    console.error("Error processing Stripe webhook:", error);
+    fetch("http://127.0.0.1:7268/ingest/0e44685c-8c68-4e88-86ca-8c289d1bed8b", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Debug-Session-Id": "20e4f1"
+      },
+      body: JSON.stringify({
+        sessionId: "20e4f1",
+        runId: "pre-fix",
+        location: "payment.controller.ts:constructEvent:catch",
+        message: "Stripe webhook signature failed",
+        data: {
+          errMsg: error instanceof Error ? error.message : String(error),
+          bodyIsBuffer: Buffer.isBuffer(req.body)
+        },
+        hypothesisId: "H1",
+        timestamp: Date.now()
+      })
+    }).catch(() => {
+    });
+    return res.status(status20.BAD_REQUEST).json({ message: "Error processing Stripe webhook" });
+  }
+  try {
+    const result = await PaymentService.handlerStripeWebhookEvent(event);
+    console.log(result);
+    sendResponse(res, {
+      httpStatusCode: status20.OK,
+      success: true,
+      message: "Stripe webhook event processed successfully",
+      data: result
+    });
+  } catch (error) {
+    console.error("Error handling Stripe webhook event:", error);
+    sendResponse(res, {
+      httpStatusCode: status20.INTERNAL_SERVER_ERROR,
+      success: false,
+      message: "Error handling Stripe webhook event"
+    });
+  }
+});
+var PaymentController = {
+  handleStripeWebhookEvent
+};
+
 // src/app.ts
 var app = express2();
+app.post("/webhook", express2.raw({ type: "application/json" }), PaymentController.handleStripeWebhookEvent);
 app.use(express2.json());
 app.use(cookieParser());
 app.use(express2.urlencoded({ extended: true }));
