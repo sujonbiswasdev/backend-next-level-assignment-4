@@ -228,8 +228,66 @@ const getAllPaymentsService = async (
   };
 };
 
+const updatePaymentStatusWithOrderCheck = async (
+  paymentId: string,
+  newStatus: string
+) => {
+  // Find the payment
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    include: { meal: true }
+  });
+  if (!payment) {
+    throw new AppError(404,"Payment not found");
+  }
+
+  // Check the participant and payment status logic
+  if (!payment.meal) {
+    throw new AppError(404,"Associated meal not found");
+  }
+
+  // If status is UNPAID, remove both payment and participant.
+  if (newStatus.toUpperCase() === PaymentStatus.UNPAID) {
+    const [deletedPayment, deletedParticipant] = await prisma.$transaction([
+      prisma.payment.delete({
+        where: { id: paymentId },
+      }),
+      prisma.order.delete({
+        where: { id: payment.orderId },
+      }),
+    ]);
+
+    return {
+      payment: deletedPayment,
+      participant: deletedParticipant,
+      message: "Payment is UNPAID, so payment and order were deleted",
+    };
+  }
+
+
+
+  const [updatedPayment, updatedOrder] = await prisma.$transaction([
+    prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: newStatus as any }
+    }),
+    prisma.order.update({
+      where: { id: payment.orderId},
+      data: { paymentStatus: newStatus as any }
+    })
+  ]);
+
+
+  return {
+    payment: updatedPayment,
+    order: updatedOrder
+  };
+};
+
+
 
 export const PaymentService = {
   handlerStripeWebhookEvent,
-  getAllPaymentsService
+  getAllPaymentsService,
+  updatePaymentStatusWithOrderCheck
 };

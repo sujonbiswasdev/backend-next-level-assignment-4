@@ -34,6 +34,8 @@ router.use('/v1',ReviewsRouter.router)
 router.use('/v1',StatsRoutes)
 //payments
 router.use('/v1',PaymentRouter)
+
+
 // auth
 router.use("/v1/auth",authRouter.router)
 
