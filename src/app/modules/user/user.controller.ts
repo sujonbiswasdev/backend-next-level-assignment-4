@@ -60,8 +60,12 @@ const UpateUserProfile = catchAsync(async (req: Request, res: Response) => {
       .status(401)
       .json({ success: false, message: "you are unauthorized" });
   }
+  const payload={
+    ...req.body,
+    image:req.file?.path || req.body.image
+  }
   const result = await UserService.UpateUserProfile(
-    req.body,
+    payload,
     user.email as string,
   );
   sendResponse(res, {

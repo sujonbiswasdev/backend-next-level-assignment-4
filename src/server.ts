@@ -1,6 +1,7 @@
 import { prisma } from "./app/lib/prisma"
 import app from "./app"
-const port = process.env.PORT || 4000
+import { envVars } from "./app/config/env"
+const port = envVars.PORT || 4000
 
 const main=async()=>{
     try {

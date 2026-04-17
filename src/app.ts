@@ -7,6 +7,7 @@ import cors from "cors";
 import errorHandler from "./app/middleware/globalErrorHandeller";
 import { IndexRouter } from "./app/routes/index.route";
 import { PaymentController } from "./app/modules/payment/payment.controller";
+import { envVars } from "./app/config/env";
 const app = express()
 // middleware
 app.post("/webhook", express.raw({ type: "application/json" }),PaymentController.handleStripeWebhookEvent);
@@ -16,7 +17,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // cors
 app.use(cors({
-    origin:"http://localhost:3000",
+    origin:envVars.FRONTEND_URL || "http://localhost:3000",
     credentials:true,
 }))
 app.all('/api/auth/*splat', toNodeHandler(auth));

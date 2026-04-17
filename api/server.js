@@ -643,12 +643,12 @@ var sendEmail = async ({
 console.log(process.env.FRONTEND_URL, "s");
 console.log(process.env.BETTER_AUTH_SECRET, "s");
 var auth = betterAuth({
-  secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: process.env.FRONTEND_URL,
+  secret: envVars.BETTER_AUTH_SECRET,
+  baseURL: envVars.FRONTEND_URL,
   database: prismaAdapter(prisma, {
     provider: "postgresql"
   }),
-  trustedOrigins: [process.env.FRONTEND_URL],
+  trustedOrigins: [envVars.FRONTEND_URL],
   user: {
     additionalFields: {
       role: {
@@ -757,7 +757,7 @@ var auth = betterAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET,
       accessType: "offline",
       prompt: "select_account consent",
-      redirectURI: `${process.env.FRONTEND_URL}/api/auth/callback/google`,
+      redirectURI: `${envVars.FRONTEND_URL}/api/auth/callback/google`,
       mapProfileToUser: () => {
         return {
           role: Role.Customer,
@@ -837,7 +837,7 @@ function errorHandler(err, req, res, next) {
 var globalErrorHandeller_default = errorHandler;
 
 // src/app/routes/index.route.ts
-import { Router as Router8 } from "express";
+import { Router as Router9 } from "express";
 
 // src/app/modules/meal/meal.route.ts
 import { Router } from "express";
@@ -2272,6 +2272,7 @@ var CreateOrder = async (payload, email) => {
   }
   const customerId = existingUser.id;
   const mealIds = payload.items.map((item) => item.mealId);
+  console.log(mealIds, "mealdis");
   const meals = await prisma.meal.findMany({
     where: { id: { in: mealIds } }
   });
@@ -2315,11 +2316,16 @@ var CreateOrder = async (payload, email) => {
           orderitem: { include: { meal: true } }
         }
       });
-      console.log(existingActiveOrder, "ddd");
-      if (existingActiveOrder.length) {
+      const existingMealIds = existingActiveOrder.flatMap(
+        (order2) => order2.orderitem.map((item) => item.mealId)
+      );
+      const matchedMealIds = existingMealIds.filter(
+        (id) => mealIds.includes(id)
+      );
+      if (matchedMealIds.length > 0) {
         throw new AppError_default(
           409,
-          `You already have an active order for this provider. Existing mealIds: ${existingActiveOrder.map((order2) => order2.orderitem.map((item) => item.mealId))}`
+          `Already ordered meals: ${matchedMealIds.join(", ")}`
         );
       }
       const totalMealPrice = payload.items.reduce((sum, item) => {
@@ -2333,7 +2339,7 @@ var CreateOrder = async (payload, email) => {
           address: payload.address,
           phone: payload.phone,
           paymentStatus: deliverycharge > 0 ? "UNPAID" : "PAID",
-          totalPrice: totalMealPrice + deliverycharge,
+          totalPrice: totalMealPrice,
           first_name: payload.first_name ?? null,
           last_name: payload.last_name ?? null,
           orderitem: {
@@ -2376,7 +2382,7 @@ var CreateOrder = async (payload, email) => {
             price_data: {
               currency: "bdt",
               product_data: { name: "Delivery charge" },
-              unit_amount: deliverycharge * 100
+              unit_amount: 120 * 100
             },
             quantity: 1
           }
@@ -2448,6 +2454,11 @@ var getOwnmealsOrder = async (email, data, page, limit, skip, sortBy, sortOrder,
       }
     });
   }
+  if (data?.phone) {
+    andConditions.push({
+      phone: data.phone
+    });
+  }
   if (data?.paymentStatus) {
     andConditions.push({
       paymentStatus: {
@@ -2459,7 +2470,7 @@ var getOwnmealsOrder = async (email, data, page, limit, skip, sortBy, sortOrder,
     andConditions.push({
       totalPrice: {
         gte: 0,
-        lte: Number(data.price)
+        lte: Number(data.totalPrice)
       }
     });
   }
@@ -2547,7 +2558,15 @@ var getOwnPaymentService = async (id, email) => {
       id
     },
     include: {
-      payment: { select: { id: true, amount: true, status: true, transactionId: true, user: true } }
+      payment: {
+        select: {
+          id: true,
+          amount: true,
+          status: true,
+          transactionId: true,
+          user: true
+        }
+      }
     }
   });
   return orderres;
@@ -2611,20 +2630,107 @@ var UpdateOrderStatus = async (id, data, role) => {
       };
     }
   }
+  if (role === "Admin") {
+    const result = await prisma.order.update({
+      where: {
+        id
+      },
+      data: {
+        status: status21
+      }
+    });
+    return {
+      success: true,
+      message: `update order status successfully`,
+      result
+    };
+  }
 };
-var getAllorder = async (role) => {
+var getAllorder = async (role, data, page, limit, skip, sortBy, sortOrder, search) => {
   if (role !== "Admin") {
     throw new AppError_default(403, "View all orders is only allowed for Admin users.");
   }
+  const andConditions = [];
+  if (search) {
+    const orConditions = [];
+    orConditions.push(
+      {
+        first_name: {
+          contains: search,
+          mode: "insensitive"
+        }
+      },
+      {
+        last_name: {
+          contains: search,
+          mode: "insensitive"
+        }
+      }
+    );
+    if (orConditions.length > 0) {
+      andConditions.push({ OR: orConditions });
+    }
+  }
+  if (data?.status) {
+    andConditions.push({
+      status: {
+        equals: data.status
+      }
+    });
+  }
+  if (data?.phone) {
+    andConditions.push({
+      phone: data.phone
+    });
+  }
+  if (data?.paymentStatus) {
+    andConditions.push({
+      paymentStatus: {
+        equals: data.paymentStatus
+      }
+    });
+  }
+  if (data?.totalPrice) {
+    andConditions.push({
+      totalPrice: {
+        gte: 0,
+        lte: Number(data.totalPrice)
+      }
+    });
+  }
+  if (data?.createdAt) {
+    const dateRange = parseDateForPrisma(data.createdAt);
+    andConditions.push({ createdAt: dateRange.gte });
+  }
   const result = await prisma.order.findMany({
+    where: {
+      AND: andConditions
+    },
     include: {
-      orderitem: true
+      orderitem: {
+        include: {
+          meal: true
+        }
+      }
     },
     orderBy: {
       createdAt: "desc"
     }
   });
-  return result;
+  const total = await prisma.order.count({
+    where: {
+      AND: andConditions
+    }
+  });
+  return {
+    result,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalpage: Math.ceil(total / (limit || 1))
+    }
+  };
 };
 var customerOrderStatusTrack = async (mealid, userid) => {
   const existingOrder = await prisma.order.findMany({
@@ -2702,6 +2808,22 @@ var getSingleOrder = async (id) => {
     result
   };
 };
+var deleteOrder = async (id, role) => {
+  const existingOrder = await prisma.order.findUnique({
+    where: { id }
+  });
+  if (!existingOrder) {
+    throw new AppError_default(status9.NOT_FOUND, "Order not found");
+  }
+  const deletedOrder = await prisma.order.delete({
+    where: { id }
+  });
+  return {
+    success: true,
+    message: "Order deleted successfully",
+    result: deletedOrder
+  };
+};
 var ServiceOrder = {
   CreateOrder,
   getOwnmealsOrder,
@@ -2710,7 +2832,8 @@ var ServiceOrder = {
   customerOrderStatusTrack,
   CustomerRunningAndOldOrder,
   getSingleOrder,
-  getOwnPaymentService
+  getOwnPaymentService,
+  deleteOrder
 };
 
 // src/app/modules/order/order.controller.ts
@@ -2763,10 +2886,12 @@ var UpdateOrderStatus2 = catchAsync(
 var getAllOrder = catchAsync(
   async (req, res) => {
     const user = req.user;
+    const { search } = req.query;
     if (!user) {
       return res.status(status10.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
     }
-    const result = await ServiceOrder.getAllorder(user.role);
+    const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(req.query);
+    const result = await ServiceOrder.getAllorder(user.role, req.query, page, limit, skip, sortBy, sortOrder, search);
     if (!result) {
       sendResponse(res, {
         httpStatusCode: status10.BAD_REQUEST,
@@ -2789,6 +2914,10 @@ var customerOrderStatusTrack2 = catchAsync(
     if (!users) {
       return res.status(401).json({ success: false, message: "you are unauthorized" });
     }
+    const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(
+      req.query
+    );
+    const { search } = req.query;
     const result = await ServiceOrder.customerOrderStatusTrack(req.params.id, users.id);
     if (!result?.success) {
       sendResponse(res, {
@@ -2860,6 +2989,29 @@ var getOwnPayment = catchAsync(async (req, res) => {
     data: result
   });
 });
+var deleteOrder2 = catchAsync(async (req, res) => {
+  const user = req.user;
+  if (!user) {
+    return res.status(401).json({ success: false, message: "you are unauthorized" });
+  }
+  const orderId = req.params.id;
+  try {
+    const result = await ServiceOrder.deleteOrder(orderId, user.role);
+    sendResponse(res, {
+      httpStatusCode: status10.OK,
+      success: true,
+      message: "Order deleted successfully",
+      data: result
+    });
+  } catch (error) {
+    sendResponse(res, {
+      httpStatusCode: error.statusCode || status10.BAD_REQUEST,
+      success: false,
+      message: error.message || "Failed to delete order",
+      data: error
+    });
+  }
+});
 var OrderController = {
   createOrder,
   getOwnmealsOrder: getOwnmealsOrder2,
@@ -2868,7 +3020,8 @@ var OrderController = {
   customerOrderStatusTrack: customerOrderStatusTrack2,
   CustomerRunningAndOldOrder: CustomerRunningAndOldOrder2,
   getSingleOrder: getSingleOrder2,
-  getOwnPayment
+  getOwnPayment,
+  deleteOrder: deleteOrder2
 };
 
 // src/app/modules/order/order.validation.ts
@@ -2893,8 +3046,9 @@ router3.get("/orders/meal/:id/status", auth_default([UserRoles.Customer]), Order
 router3.get("/myorders/status", auth_default([UserRoles.Customer]), OrderController.CustomerRunningAndOldOrder);
 router3.get("/orders/all", auth_default([UserRoles.Admin]), OrderController.getAllOrder);
 router3.get("/orders", auth_default([UserRoles.Customer, UserRoles.Provider]), OrderController.getOwnmealsOrder);
-router3.patch("/provider/orders/:id", auth_default([UserRoles.Provider, UserRoles.Customer]), OrderController.UpdateOrderStatus);
+router3.patch("/provider/orders/:id", auth_default([UserRoles.Provider, UserRoles.Customer, UserRoles.Admin]), OrderController.UpdateOrderStatus);
 router3.get("/orders/:id", auth_default([UserRoles.Customer]), OrderController.getSingleOrder);
+router3.delete("/order/:id", auth_default([UserRoles.Admin]), OrderController.deleteOrder);
 router3.get("/order/:id/own-payment", auth_default([UserRoles.Customer]), OrderController.getOwnPayment);
 var OrderRouter = { router: router3 };
 
@@ -4567,17 +4721,8 @@ router8.get(
 );
 var StatsRoutes = router8;
 
-// src/app/routes/index.route.ts
-var router9 = Router8();
-router9.use("/v1", mealRouter.router);
-router9.use("/v1", providerRouter.router);
-router9.use("/v1", OrderRouter.router);
-router9.use("/v1", CategoryRouter.router);
-router9.use("/v1", UserRouter.router);
-router9.use("/v1", ReviewsRouter.router);
-router9.use("/v1", StatsRoutes);
-router9.use("/v1/auth", authRouter.router);
-var IndexRouter = router9;
+// src/app/modules/payment/payment.route.ts
+import { Router as Router8 } from "express";
 
 // src/app/modules/payment/payment.controller.ts
 import status20 from "http-status";
@@ -4727,8 +4872,117 @@ var handlerStripeWebhookEvent = async (event) => {
   }
   return { message: `Webhook Event ${event.id} processed successfully` };
 };
+var getAllPaymentsService = async (email, page, limit, skip, sortBy, sortOrder, query) => {
+  await cleanupAllUnpaidPayments();
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) throw new Error("User not found");
+  if (user.role !== "Admin") {
+    throw new Error("Unauthorized: Only admin can access all payments");
+  }
+  const filters = [];
+  if (query.status) filters.push({ status: query.status });
+  if (query.amount) filters.push({ amount: Number(query.amount) });
+  if (query.paymentStatus) filters.push({ status: query.paymentStatus });
+  if (query.createdAt) {
+    const dateRange = parseDateForPrisma(query.createdAt);
+    filters.push({ createdAt: dateRange });
+  }
+  if (query.userId) filters.push({ userId: query.userId });
+  if (query.eventId) filters.push({ eventId: query.eventId });
+  const whereOptions = filters.length ? { AND: filters } : {};
+  ;
+  const payments = await prisma.payment.findMany({
+    where: whereOptions,
+    skip,
+    take: limit,
+    orderBy: { "createdAt": "desc" },
+    include: {
+      meal: true,
+      order: true,
+      user: true
+    }
+  });
+  const total = await prisma.payment.count({ where: whereOptions });
+  return {
+    payments,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    }
+  };
+};
+var updatePaymentStatusWithOrderCheck = async (paymentId, newStatus) => {
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    include: { meal: true }
+  });
+  if (!payment) {
+    throw new AppError_default(404, "Payment not found");
+  }
+  if (!payment.meal) {
+    throw new AppError_default(404, "Associated meal not found");
+  }
+  if (newStatus.toUpperCase() === PaymentStatus.UNPAID) {
+    const [deletedPayment, deletedParticipant] = await prisma.$transaction([
+      prisma.payment.delete({
+        where: { id: paymentId }
+      }),
+      prisma.order.delete({
+        where: { id: payment.orderId }
+      })
+    ]);
+    return {
+      payment: deletedPayment,
+      participant: deletedParticipant,
+      message: "Payment is UNPAID, so payment and order were deleted"
+    };
+  }
+  const [updatedPayment, updatedOrder] = await prisma.$transaction([
+    prisma.payment.update({
+      where: { id: paymentId },
+      data: { status: newStatus }
+    }),
+    prisma.order.update({
+      where: { id: payment.orderId },
+      data: { paymentStatus: newStatus }
+    })
+  ]);
+  return {
+    payment: updatedPayment,
+    order: updatedOrder
+  };
+};
+var deletePayment = async (paymentId) => {
+  const payment = await prisma.payment.findUnique({
+    where: { id: paymentId },
+    include: { order: true }
+  });
+  if (!payment) {
+    throw new Error("Payment not found");
+  }
+  if (!payment.order) {
+    throw new Error("Associated participant not found");
+  }
+  const [deletedPayment, deletedOrder] = await prisma.$transaction([
+    prisma.payment.delete({
+      where: { id: paymentId }
+    }),
+    prisma.order.delete({
+      where: { id: payment.order.id }
+    })
+  ]);
+  return {
+    payment: deletedPayment,
+    order: deletedOrder
+  };
+};
 var PaymentService = {
-  handlerStripeWebhookEvent
+  handlerStripeWebhookEvent,
+  getAllPaymentsService,
+  updatePaymentStatusWithOrderCheck,
+  deletePayment
 };
 
 // src/app/modules/payment/payment.controller.ts
@@ -4806,9 +5060,89 @@ var handleStripeWebhookEvent = catchAsync(async (req, res) => {
     });
   }
 });
+var getAllPayment = catchAsync(async (req, res) => {
+  const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(req.query);
+  const payments = await PaymentService.getAllPaymentsService(req.user?.email, page, limit, skip, sortBy, sortOrder, req.query);
+  sendResponse(res, {
+    httpStatusCode: status20.OK,
+    success: true,
+    message: "All payment fetched",
+    data: payments
+  });
+});
+var updatePaymentStatus = catchAsync(async (req, res) => {
+  const { paymentId } = req.params;
+  const { status: newStatus } = req.body;
+  try {
+    const result = await PaymentService.updatePaymentStatusWithOrderCheck(paymentId, newStatus);
+    return sendResponse(res, {
+      httpStatusCode: status20.OK,
+      success: true,
+      message: "Payment status updated successfully",
+      data: result
+    });
+  } catch (error) {
+    console.error("Error updating payment status:", error);
+    return sendResponse(res, {
+      httpStatusCode: status20.INTERNAL_SERVER_ERROR,
+      success: false,
+      message: "Error updating payment status"
+    });
+  }
+});
+var deletePayment2 = catchAsync(async (req, res) => {
+  const { paymentId } = req.params;
+  try {
+    const result = await PaymentService.deletePayment(paymentId);
+    return sendResponse(res, {
+      httpStatusCode: status20.OK,
+      success: true,
+      message: "Payment deleted successfully",
+      data: result
+    });
+  } catch (error) {
+    console.error("Error deleting payment:", error);
+    return sendResponse(res, {
+      httpStatusCode: status20.INTERNAL_SERVER_ERROR,
+      success: false,
+      message: "Error deleting payment"
+    });
+  }
+});
 var PaymentController = {
-  handleStripeWebhookEvent
+  handleStripeWebhookEvent,
+  getAllPayment,
+  updatePaymentStatus,
+  deletePayment: deletePayment2
 };
+
+// src/app/modules/payment/payment.route.ts
+var router9 = Router8();
+router9.get("/payments", auth_default([UserRoles.Admin]), PaymentController.getAllPayment);
+router9.patch(
+  "/payments/:paymentId/status",
+  auth_default([UserRoles.Admin]),
+  PaymentController.updatePaymentStatus
+);
+router9.delete(
+  "/payments/:paymentId",
+  auth_default([UserRoles.Admin]),
+  PaymentController.deletePayment
+);
+var PaymentRouter = router9;
+
+// src/app/routes/index.route.ts
+var router10 = Router9();
+router10.use("/v1", mealRouter.router);
+router10.use("/v1", providerRouter.router);
+router10.use("/v1", OrderRouter.router);
+router10.use("/v1", CategoryRouter.router);
+router10.use("/v1", UserRouter.router);
+router10.use("/v1", ReviewsRouter.router);
+router10.use("/v1", StatsRoutes);
+router10.use("/v1", PaymentRouter);
+router10.use("/v1/auth", authRouter.router);
+var IndexRouter = router10;
 
 // src/app.ts
 var app = express2();
@@ -4817,7 +5151,7 @@ app.use(express2.json());
 app.use(cookieParser());
 app.use(express2.urlencoded({ extended: true }));
 app.use(cors({
-  origin: "http://localhost:3000",
+  origin: envVars.FRONTEND_URL || "http://localhost:3000",
   credentials: true
 }));
 app.all("/api/auth/*splat", toNodeHandler(auth));
@@ -4830,7 +5164,7 @@ app.use(Notfound);
 var app_default = app;
 
 // src/server.ts
-var port = process.env.PORT || 4e3;
+var port = envVars.PORT || 4e3;
 var main = async () => {
   try {
     await prisma.$connect();

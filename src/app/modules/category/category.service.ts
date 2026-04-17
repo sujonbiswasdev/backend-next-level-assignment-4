@@ -7,6 +7,9 @@ import status from "http-status";
 import { CategoryWhereInput } from "../../../../generated/prisma/models";
 import { parseDateForPrisma } from "../../utils/parseDate";
 const CreateCategory = async (data: ICreateCategory, email: string) => {
+  if(!data.image){
+    throw new AppError(404, "Image is required");
+  }
   const adminUser = await prisma.user.findUnique({
     where: { email },
   });
@@ -29,6 +32,7 @@ const CreateCategory = async (data: ICreateCategory, email: string) => {
   await prisma.user.findUniqueOrThrow({
     where: { id: adminId },
   });
+
 
   const result = await prisma.category.create({
     data: {

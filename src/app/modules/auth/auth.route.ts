@@ -9,7 +9,7 @@ const router=Router()
 router.get('/me',auth([UserRoles.Admin,UserRoles.Customer,UserRoles.Provider]),authController.getCurrentUser)
 
 router.post('/logout',auth([UserRoles.Admin,UserRoles.Customer,UserRoles.Provider]),authController.signoutUser)
-router.post('/register',validateRequest(createUserSchema),authController.signup)
+router.post("/register",multerUpload.single("file"),validateRequest(createUserSchema), authController.signup)
 router.post('/login',authController.signin)
 router.post("/change-password", auth([UserRoles.Admin,UserRoles.Provider,UserRoles.Customer]), authController.changePassword)
 router.post("/refresh-token", authController.getNewToken)

@@ -3,7 +3,7 @@ import z from "zod";
  export const CreatemealData = z.object({
         meals_name: z.string(),
         description: z.string().optional(),
-        image: z.string(),
+        image: z.any(),
         price: z.number(),
         deliverycharge:z.number().optional(),
         isAvailable: z.boolean().optional(),
@@ -37,7 +37,7 @@ import z from "zod";
 export const UpdatemealData = z.object({
     meals_name: z.string().optional(),
     description: z.string().optional(),
-    image: z.string().optional(),
+    image: z.any().optional(),
     price: z.number().optional(),
     isAvailable: z.boolean().optional(),
     category_name: z.string().optional(),

@@ -4,6 +4,7 @@ import { UserRoles } from "../../middleware/auth.const";
 import auth from "../../middleware/auth";
 import { UserController } from "./user.controller";
 import { UpdateUserCommonData, UpdateuserProfileData } from './user.validation';
+import { multerUpload } from '../../config/multer.config';
 
 const router=Router()
 

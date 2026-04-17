@@ -4,10 +4,11 @@ import { CategoryController } from "./category.controller";
 import auth from "../../middleware/auth";
 import { validateRequest } from "../../middleware/validateRequest";
 import { createcategoryData, UpdatecategoryData } from "./category.validation";
+import { multerUpload } from "../../config/multer.config";
 
 const router=Router()
 
-router.post("/admin/category",auth([UserRoles.Admin]),validateRequest(createcategoryData),CategoryController.CreateCategory)
+router.post("/admin/category",auth([UserRoles.Admin]),multerUpload.single("file"),validateRequest(createcategoryData),CategoryController.CreateCategory)
 router.get("/category",CategoryController.getCategory)
 router.get("/category/:id",CategoryController.SingleCategory)
 router.put("/admin/category/:id",auth([UserRoles.Admin]),validateRequest(UpdatecategoryData),CategoryController.UpdateCategory)

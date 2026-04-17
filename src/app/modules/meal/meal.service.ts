@@ -14,6 +14,9 @@ import status from "http-status";
 import { parseDateForPrisma } from '../../utils/parseDate';
 
 const createMeal = async (data: ICreateMealsData, email: string) => {
+  if(!data.image){
+    throw new AppError(404, "Image is required");
+  }
   const providerid = await prisma.user.findUnique({
     where: { email},
     include: { provider: { select: { id: true } } },

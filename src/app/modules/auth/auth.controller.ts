@@ -52,7 +52,8 @@ const signoutUser = catchAsync(async (req: Request, res: Response) => {
 
 const signup = catchAsync(async (req: Request, res: Response) => {
   const payload = {
-    ...req.body
+    ...req.body,
+    image:req.file?.path || req.body.image
 };
   const result = await authService.signup(payload);
   if (!result) {

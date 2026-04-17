@@ -11,7 +11,11 @@ const createMeal = catchAsync(async (req: Request, res: Response) => {
       .status(401)
       .json({ success: false, message: "you are unauthorized" });
   }
-  const result = await mealService.createMeal(req.body, user.email as string);
+  const payload = {
+    ...req.body,
+    image:req.file?.path || req.body.image
+};
+  const result = await mealService.createMeal(payload, user.email as string);
   sendResponse(res, {
     httpStatusCode: status.CREATED,
     success: true,
@@ -27,8 +31,12 @@ const UpdateMeals = catchAsync(async (req: Request, res: Response) => {
       .status(status.UNAUTHORIZED)
       .json({ success: false, message: "you are not authorized" });
   }
+  const payload = {
+    ...req.body,
+    image:req.file?.path || req.body.image
+};
   const result = await mealService.UpdateMeals(
-    req.body,
+    payload,
     req.params.id as string,
   );
   sendResponse(res, {

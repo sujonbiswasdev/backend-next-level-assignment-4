@@ -4,17 +4,18 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { bearer, emailOTP } from "better-auth/plugins";
 import { Role, Status } from "../../../generated/prisma/enums";
 import { sendEmail } from "../utils/email";
+import { envVars } from "../config/env";
 
 console.log(process.env.FRONTEND_URL,'s')
 console.log(process.env.BETTER_AUTH_SECRET,'s')
 
 export const auth = betterAuth({
-    secret: process.env.BETTER_AUTH_SECRET,
-    baseURL: process.env.FRONTEND_URL,
+    secret: envVars.BETTER_AUTH_SECRET,
+    baseURL: envVars.FRONTEND_URL,
     database: prismaAdapter(prisma, {
         provider: "postgresql",
     }),
-    trustedOrigins: [process.env.FRONTEND_URL!],
+    trustedOrigins: [envVars.FRONTEND_URL!],
     user: {
         additionalFields: {
             role: {
@@ -127,7 +128,7 @@ export const auth = betterAuth({
             clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
             accessType: "offline",
             prompt: "select_account consent",
-            redirectURI:`${process.env.FRONTEND_URL}/api/auth/callback/google`,
+            redirectURI:`${envVars.FRONTEND_URL}/api/auth/callback/google`,
             mapProfileToUser: () => {
               return {
                 role: Role.Customer,

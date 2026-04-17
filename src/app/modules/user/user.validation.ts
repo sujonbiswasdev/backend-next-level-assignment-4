@@ -3,7 +3,7 @@ import z from "zod";
 export const UpdateuserProfileData = z
     .object({
       name: z.string().optional(),
-      image: z.string().optional(),
+      image: z.any().optional(),
       bgimage: z.string().optional(),
       email: z.string().optional(),
       password: z.string().min(8).optional(),
