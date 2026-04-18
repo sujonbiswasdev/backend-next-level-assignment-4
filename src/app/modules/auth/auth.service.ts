@@ -16,9 +16,6 @@ const getCurrentUser = async (email: string) => {
   if (!user) {
     throw new AppError(status.NOT_FOUND, "User not found");
   }
-  if (!user.isActive) {
-    throw new AppError(status.UNAUTHORIZED, "User account is not active");
-  }
   return user;
 };
 

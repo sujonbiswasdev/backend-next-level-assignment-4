@@ -319,7 +319,7 @@ const getOwnmealsOrder = async (
         total,
         page,
         limit,
-        totalpage: Math.ceil(total / (limit || 1)),
+        totalpage: Math.ceil(total / (limit || 1)) || 1,
       },
     };
   }
@@ -543,7 +543,7 @@ const getAllorder = async (
       total,
       page,
       limit,
-      totalpage: Math.ceil(total / (limit || 1)),
+      totalpage: Math.ceil(total / (limit || 1)) || 1,
     },
   };
 };

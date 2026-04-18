@@ -266,6 +266,9 @@ const getSinglemeals = async (id: string) => {
 
 const UpdateMeals = async (data: IUpdateMealsData, mealid: string) => {
   const { category_name } = data as any;
+  if(!data.image){
+    throw new AppError(404, "Image is required");
+  }
   const existmeal = await prisma.meal.findUnique({
     where: { id: mealid },
   });
@@ -316,7 +319,6 @@ const getOwnMeals = async (
   sortBy?: string | undefined,
   sortOrder?: string | undefined,
   search?:string | undefined) => {
-  data = data && typeof data === 'object' ? data : {};
   let userid;
   if (email) {
     const user = await prisma.user.findUnique({
@@ -348,15 +350,8 @@ const getOwnMeals = async (
             mode: "insensitive",
           },
         },
-        {
-          address: {
-            contains: search,
-            mode: "insensitive",
-          },
-        },
       );
     }
-
     if (data.cuisine) {
       orConditions.push({
         cuisine: {
@@ -372,11 +367,6 @@ const getOwnMeals = async (
         },
       });
     }
-    
-    if (data.createdAt) {
-      const dateRange = parseDateForPrisma(data.createdAt);
-      andConditions.push({ createdAt: dateRange.gte });
-    }
     if (orConditions.length > 0) {
       andConditions.push({ OR: orConditions });
     }
@@ -385,17 +375,7 @@ const getOwnMeals = async (
     andConditions.push({ isAvailable: isAvailable });
   }
 
-  
-
-  if (data.status) {
-    andConditions.push({
-      status: {
-        equals: data.status,
-      },
-    });
-  }
-
-  if (data.price) {
+  if (data?.price) {
     andConditions.push({
       price: {
         gte: 0,
@@ -403,7 +383,14 @@ const getOwnMeals = async (
       },
     });
   }
-  if (data.dietaryPreference?.length) {
+  if(data?.status){
+    andConditions.push({
+      status:{
+        equals:data.status
+      }
+    })
+  }
+  if (data?.dietaryPreference?.length) {
     const dietaryList = data.dietaryPreference.split(
       ",",
     ) as DietaryPreference[];
@@ -476,7 +463,7 @@ const getOwnMeals = async (
       total,
       page,
       limit,
-      totalpage: Math.ceil(total / (limit || 1)),
+      totalpage: Math.ceil(total / (limit || 1)) || 1,
     },
     
   };

@@ -988,22 +988,10 @@ var UserRoles = {
 
 // src/app/modules/meal/meal.service.ts
 import status5 from "http-status";
-
-// src/app/utils/parseDate.ts
-function parseDateForPrisma(dateStr) {
-  const parsedDate = new Date(dateStr);
-  if (isNaN(parsedDate.getTime())) {
-    throw new Error("Invalid date format! Use YYYY-MM-DD or ISO string.");
-  }
-  const startOfDay = new Date(parsedDate);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(parsedDate);
-  endOfDay.setHours(23, 59, 59, 999);
-  return { gte: startOfDay, lte: endOfDay };
-}
-
-// src/app/modules/meal/meal.service.ts
 var createMeal = async (data, email) => {
+  if (!data.image) {
+    throw new AppError_default(404, "Image is required");
+  }
   const providerid = await prisma.user.findUnique({
     where: { email },
     include: { provider: { select: { id: true } } }
@@ -1212,6 +1200,9 @@ var getSinglemeals = async (id) => {
 };
 var UpdateMeals = async (data, mealid) => {
   const { category_name } = data;
+  if (!data.image) {
+    throw new AppError_default(404, "Image is required");
+  }
   const existmeal = await prisma.meal.findUnique({
     where: { id: mealid }
   });
@@ -1249,7 +1240,6 @@ var DeleteMeals = async (mealid) => {
   return result;
 };
 var getOwnMeals = async (email, data, isAvailable, page, limit, skip, sortBy, sortOrder, search) => {
-  data = data && typeof data === "object" ? data : {};
   let userid;
   if (email) {
     const user = await prisma.user.findUnique({
@@ -1276,12 +1266,6 @@ var getOwnMeals = async (email, data, isAvailable, page, limit, skip, sortBy, so
             contains: search,
             mode: "insensitive"
           }
-        },
-        {
-          address: {
-            contains: search,
-            mode: "insensitive"
-          }
         }
       );
     }
@@ -1300,10 +1284,6 @@ var getOwnMeals = async (email, data, isAvailable, page, limit, skip, sortBy, so
         }
       });
     }
-    if (data.createdAt) {
-      const dateRange = parseDateForPrisma(data.createdAt);
-      andConditions.push({ createdAt: dateRange.gte });
-    }
     if (orConditions.length > 0) {
       andConditions.push({ OR: orConditions });
     }
@@ -1311,14 +1291,7 @@ var getOwnMeals = async (email, data, isAvailable, page, limit, skip, sortBy, so
   if (typeof isAvailable === "boolean") {
     andConditions.push({ isAvailable });
   }
-  if (data.status) {
-    andConditions.push({
-      status: {
-        equals: data.status
-      }
-    });
-  }
-  if (data.price) {
+  if (data?.price) {
     andConditions.push({
       price: {
         gte: 0,
@@ -1326,7 +1299,14 @@ var getOwnMeals = async (email, data, isAvailable, page, limit, skip, sortBy, so
       }
     });
   }
-  if (data.dietaryPreference?.length) {
+  if (data?.status) {
+    andConditions.push({
+      status: {
+        equals: data.status
+      }
+    });
+  }
+  if (data?.dietaryPreference?.length) {
     const dietaryList = data.dietaryPreference.split(
       ","
     );
@@ -1398,18 +1378,18 @@ var getOwnMeals = async (email, data, isAvailable, page, limit, skip, sortBy, so
       total,
       page,
       limit,
-      totalpage: Math.ceil(total / (limit || 1))
+      totalpage: Math.ceil(total / (limit || 1)) || 1
     }
   };
 };
 var updateStatus = async (data, mealid) => {
-  const { status: status21 } = data;
+  const { status: status22 } = data;
   const existmeal = await prisma.meal.findUnique({
     where: {
       id: mealid
     }
   });
-  if (existmeal?.status === status21) {
+  if (existmeal?.status === status22) {
     throw new AppError_default(409, "meal status already up to date");
   }
   if (existmeal?.id !== mealid) {
@@ -1420,7 +1400,7 @@ var updateStatus = async (data, mealid) => {
       id: mealid
     },
     data: {
-      status: status21
+      status: status22
     }
   });
   return result;
@@ -1589,7 +1569,11 @@ var createMeal2 = catchAsync(async (req, res) => {
   if (!user) {
     return res.status(401).json({ success: false, message: "you are unauthorized" });
   }
-  const result = await mealService.createMeal(req.body, user.email);
+  const payload = {
+    ...req.body,
+    image: req.file?.path || req.body.image
+  };
+  const result = await mealService.createMeal(payload, user.email);
   sendResponse(res, {
     httpStatusCode: status6.CREATED,
     success: true,
@@ -1602,8 +1586,12 @@ var UpdateMeals2 = catchAsync(async (req, res) => {
   if (!user) {
     return res.status(status6.UNAUTHORIZED).json({ success: false, message: "you are not authorized" });
   }
+  const payload = {
+    ...req.body,
+    image: req.file?.path || req.body.image
+  };
   const result = await mealService.UpdateMeals(
-    req.body,
+    payload,
     req.params.id
   );
   sendResponse(res, {
@@ -1832,7 +1820,7 @@ import z from "zod";
 var CreatemealData = z.object({
   meals_name: z.string(),
   description: z.string().optional(),
-  image: z.string(),
+  image: z.any(),
   price: z.number(),
   deliverycharge: z.number().optional(),
   isAvailable: z.boolean().optional(),
@@ -1866,7 +1854,7 @@ var CreatemealData = z.object({
 var UpdatemealData = z.object({
   meals_name: z.string().optional(),
   description: z.string().optional(),
-  image: z.string().optional(),
+  image: z.any().optional(),
   price: z.number().optional(),
   isAvailable: z.boolean().optional(),
   category_name: z.string().optional(),
@@ -1911,15 +1899,54 @@ var mealupdateStatus = z.object({
   status: z.enum(["PENDING", "APPROVED", "REJECTED"])
 });
 
+// src/app/config/multer.config.ts
+import multer from "multer";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+
+// src/app/config/cloudinary.config.ts
+import { v2 as cloudinary } from "cloudinary";
+import status7 from "http-status";
+cloudinary.config({
+  cloud_name: envVars.CLOUDINARY.CLOUDINARY_CLOUD_NAME,
+  api_key: envVars.CLOUDINARY.CLOUDINARY_API_KEY,
+  api_secret: envVars.CLOUDINARY.CLOUDINARY_API_SECRET,
+  secure: true,
+  timeout: 6e4
+});
+var cloudinaryUpload = cloudinary;
+
+// src/app/config/multer.config.ts
+var storage = new CloudinaryStorage({
+  cloudinary: cloudinaryUpload,
+  params: async (req, file) => {
+    const originalName = file.originalname;
+    const extension = originalName.split(".").pop()?.toLocaleLowerCase();
+    const fileNameWithoutExtension = originalName.split(".").slice(0, -1).join(".").toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9\-]/g, "");
+    const uniqueName = Math.random().toString(36).substring(2) + "-" + Date.now() + "-" + fileNameWithoutExtension;
+    const folder = extension === "pdf" ? "pdfs" : "images";
+    return {
+      folder: `foodhub/${folder}`,
+      public_id: uniqueName,
+      resource_type: "auto",
+      format: extension === "pdf" ? "pdf" : "webp",
+      // ইমেজ হলে অটোমেটিক webp হবে (ফাইল সাইজ কমায়)
+      transformation: extension !== "pdf" ? [{ quality: "auto", fetch_format: "auto" }] : void 0
+    };
+  }
+});
+var multerUpload = multer({ storage, limits: {
+  fileSize: 1024 * 1024
+} });
+
 // src/app/modules/meal/meal.route.ts
 var router = Router();
 router.get("/meals", mealController.Getallmeals);
 router.get("/deviveryCharge", mealController.DeviceryCharge);
 router.get("/admin/meals", auth_default([UserRoles.Admin]), mealController.getAllMealsForAdmin);
 router.get("/provider/meals/own", auth_default([UserRoles.Provider]), mealController.getownmeals);
-router.post("/provider/meal", auth_default([UserRoles.Provider]), validateRequest(CreatemealData), mealController.createMeal);
+router.post("/provider/meal", auth_default([UserRoles.Provider]), multerUpload.single("file"), validateRequest(CreatemealData), mealController.createMeal);
 router.delete("/provider/meal/:id", auth_default([UserRoles.Provider, UserRoles.Admin]), mealController.DeleteMeals);
-router.put("/provider/meal/:id", auth_default([UserRoles.Provider]), validateRequest(UpdatemealData), mealController.UpdateMeals);
+router.put("/provider/meal/:id", auth_default([UserRoles.Provider]), multerUpload.single("file"), validateRequest(UpdatemealData), mealController.UpdateMeals);
 router.get("/meal/:id", mealController.GetSignlemeals);
 router.patch("/meal/:id", auth_default([UserRoles.Admin]), mealController.updateStatus);
 var mealRouter = { router };
@@ -1928,7 +1955,7 @@ var mealRouter = { router };
 import { Router as Router2 } from "express";
 
 // src/app/modules/provider/provider.service.ts
-import status7 from "http-status";
+import status8 from "http-status";
 var createProvider = async (data, userId) => {
   const existinguser = await prisma.user.findUnique({ where: { id: userId } });
   if (!existinguser) {
@@ -2015,7 +2042,7 @@ var getProviderWithMeals = async (id) => {
     where: { id }
   });
   if (!existprovider) {
-    throw new AppError_default(status7.NOT_FOUND, "provider not found for this id");
+    throw new AppError_default(status8.NOT_FOUND, "provider not found for this id");
   }
   const provider = await prisma.providerProfile.findUnique({
     where: { id },
@@ -2032,7 +2059,7 @@ var getProviderWithMeals = async (id) => {
     }
   });
   if (!provider) {
-    throw new AppError_default(status7.NOT_FOUND, "provider not found for this id");
+    throw new AppError_default(status8.NOT_FOUND, "provider not found for this id");
   }
   const userid = provider.userId;
   const ratings = await prisma.review.groupBy({
@@ -2124,7 +2151,7 @@ var getTopProviders = async () => {
 };
 var UpateProviderProfile = async (data, email) => {
   if (!data) {
-    throw new AppError_default(status7.BAD_REQUEST, "no data provided for update");
+    throw new AppError_default(status8.BAD_REQUEST, "no data provided for update");
   }
   const providerinfo = await prisma.user.findUnique({
     where: { email },
@@ -2133,7 +2160,7 @@ var UpateProviderProfile = async (data, email) => {
     }
   });
   if (!providerinfo) {
-    throw new AppError_default(status7.NOT_FOUND, "user not found");
+    throw new AppError_default(status8.NOT_FOUND, "user not found");
   }
   const result = await prisma.providerProfile.update({
     where: { id: providerinfo.provider.id },
@@ -2155,7 +2182,7 @@ var providerService = {
 };
 
 // src/app/modules/provider/provider.controller.ts
-import status8 from "http-status";
+import status9 from "http-status";
 var createProvider2 = catchAsync(
   async (req, res) => {
     const user = req.user;
@@ -2164,7 +2191,7 @@ var createProvider2 = catchAsync(
     }
     const result = await providerService.createProvider(req.body, user.id);
     sendResponse(res, {
-      httpStatusCode: status8.CREATED,
+      httpStatusCode: status9.CREATED,
       success: true,
       message: "your provider profile has been created",
       data: result
@@ -2178,7 +2205,7 @@ var gelAllprovider = catchAsync(
     const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(req.query);
     const result = await providerService.getAllProvider(req.query, isActive, page, limit, skip, sortBy, sortOrder, search);
     sendResponse(res, {
-      httpStatusCode: status8.OK,
+      httpStatusCode: status9.OK,
       success: true,
       message: "retrieve all provider successfully",
       data: result
@@ -2189,7 +2216,7 @@ var getProviderWithMeals2 = catchAsync(
   async (req, res) => {
     const result = await providerService.getProviderWithMeals(req.params.id);
     sendResponse(res, {
-      httpStatusCode: status8.OK,
+      httpStatusCode: status9.OK,
       success: true,
       message: "retrieve provider with meals successfully",
       data: result
@@ -2204,14 +2231,14 @@ var UpateProviderProfile2 = catchAsync(async (req, res) => {
   const result = await providerService.UpateProviderProfile(req.body, user.email);
   if (!result) {
     sendResponse(res, {
-      httpStatusCode: status8.BAD_REQUEST,
+      httpStatusCode: status9.BAD_REQUEST,
       success: false,
       message: "update provider profile failed",
       data: result
     });
   }
   sendResponse(res, {
-    httpStatusCode: status8.OK,
+    httpStatusCode: status9.OK,
     success: true,
     message: "update provider profile successfully",
     data: result
@@ -2220,7 +2247,7 @@ var UpateProviderProfile2 = catchAsync(async (req, res) => {
 var getTopProviders2 = catchAsync(async (req, res) => {
   const result = await providerService.getTopProviders();
   sendResponse(res, {
-    httpStatusCode: status8.OK,
+    httpStatusCode: status9.OK,
     success: true,
     message: "retrieve top providers successfully",
     data: result
@@ -2257,7 +2284,20 @@ import { Router as Router3 } from "express";
 
 // src/app/modules/order/order.service.ts
 import { v6 as uuidv6 } from "uuid";
-import status9 from "http-status";
+import status10 from "http-status";
+
+// src/app/utils/parseDate.ts
+function parseDateForPrisma(dateStr) {
+  const parsedDate = new Date(dateStr);
+  if (isNaN(parsedDate.getTime())) {
+    throw new Error("Invalid date format! Use YYYY-MM-DD or ISO string.");
+  }
+  const startOfDay = new Date(parsedDate);
+  startOfDay.setHours(0, 0, 0, 0);
+  const endOfDay = new Date(parsedDate);
+  endOfDay.setHours(23, 59, 59, 999);
+  return { gte: startOfDay, lte: endOfDay };
+}
 
 // src/app/config/stripe.config.ts
 import Stripe from "stripe";
@@ -2539,7 +2579,7 @@ var getOwnmealsOrder = async (email, data, page, limit, skip, sortBy, sortOrder,
         total,
         page,
         limit,
-        totalpage: Math.ceil(total / (limit || 1))
+        totalpage: Math.ceil(total / (limit || 1)) || 1
       }
     };
   }
@@ -2572,7 +2612,7 @@ var getOwnPaymentService = async (id, email) => {
   return orderres;
 };
 var UpdateOrderStatus = async (id, data, role) => {
-  const { status: status21 } = data;
+  const { status: status22 } = data;
   const statusValue = [
     "PLACED",
     "PREPARING",
@@ -2580,20 +2620,20 @@ var UpdateOrderStatus = async (id, data, role) => {
     "DELIVERED",
     "CANCELLED"
   ];
-  if (!statusValue.includes(status21)) {
+  if (!statusValue.includes(status22)) {
     throw new AppError_default(400, "invalid status value");
   }
   const existingOrder = await prisma.order.findUnique({ where: { id } });
   if (!existingOrder) {
     throw new AppError_default(404, "no order found for this id");
   }
-  if (existingOrder?.status == status21) {
-    throw new AppError_default(409, `order already ${status21}`);
+  if (existingOrder?.status == status22) {
+    throw new AppError_default(409, `order already ${status22}`);
   }
-  if (role == "Customer" && status21 !== "CANCELLED") {
+  if (role == "Customer" && status22 !== "CANCELLED") {
     throw new AppError_default(400, "Customer can only change status to CANCELLED");
   }
-  if (role == "Customer" && status21 == "CANCELLED") {
+  if (role == "Customer" && status22 == "CANCELLED") {
     if (existingOrder?.status == "DELIVERED" || existingOrder?.status == "PREPARING" || existingOrder?.status == "READY") {
       throw new AppError_default(
         400,
@@ -2605,22 +2645,22 @@ var UpdateOrderStatus = async (id, data, role) => {
         id
       },
       data: {
-        status: status21
+        status: status22
       }
     });
     return result;
   }
-  if (role == "Provider" && status21 === "CANCELLED") {
+  if (role == "Provider" && status22 === "CANCELLED") {
     throw new AppError_default(400, "CANCELLED only Customer Change");
   }
   if (role == "Provider") {
-    if (status21 == "PLACED" || status21 == "PREPARING" || status21 == "READY" || status21 == "DELIVERED") {
+    if (status22 == "PLACED" || status22 == "PREPARING" || status22 == "READY" || status22 == "DELIVERED") {
       const result = await prisma.order.update({
         where: {
           id
         },
         data: {
-          status: status21
+          status: status22
         }
       });
       return {
@@ -2636,7 +2676,7 @@ var UpdateOrderStatus = async (id, data, role) => {
         id
       },
       data: {
-        status: status21
+        status: status22
       }
     });
     return {
@@ -2728,7 +2768,7 @@ var getAllorder = async (role, data, page, limit, skip, sortBy, sortOrder, searc
       total,
       page,
       limit,
-      totalpage: Math.ceil(total / (limit || 1))
+      totalpage: Math.ceil(total / (limit || 1)) || 1
     }
   };
 };
@@ -2744,7 +2784,7 @@ var customerOrderStatusTrack = async (mealid, userid) => {
     }
   });
   if (existingOrder.length === 0) {
-    throw new AppError_default(status9.NOT_FOUND, "no order found for this meal");
+    throw new AppError_default(status10.NOT_FOUND, "no order found for this meal");
   }
   console.log(existingOrder, "data");
   return {
@@ -2753,21 +2793,21 @@ var customerOrderStatusTrack = async (mealid, userid) => {
     result: existingOrder
   };
 };
-var CustomerRunningAndOldOrder = async (userid, status21) => {
+var CustomerRunningAndOldOrder = async (userid, status22) => {
   const andConditions = [];
   let message = "customer running and old order retrieve successfully";
-  let currentStatus = status21;
-  if (status21 == "DELIVERED") {
-    andConditions.push({ status: status21 });
-    message = "Recent order information retrieved successfully.", currentStatus = status21;
+  let currentStatus = status22;
+  if (status22 == "DELIVERED") {
+    andConditions.push({ status: status22 });
+    message = "Recent order information retrieved successfully.", currentStatus = status22;
   }
-  if (status21 == "CANCELLED") {
-    andConditions.push({ status: status21 });
-    message = "CANCELLED order information retrieved successfully.", currentStatus = status21;
+  if (status22 == "CANCELLED") {
+    andConditions.push({ status: status22 });
+    message = "CANCELLED order information retrieved successfully.", currentStatus = status22;
   }
-  if (status21 == "PLACED" || status21 == "PREPARING" || status21 == "READY") {
-    andConditions.push({ status: status21 });
-    message = "running order retrieved successfully.", currentStatus = status21;
+  if (status22 == "PLACED" || status22 == "PREPARING" || status22 == "READY") {
+    andConditions.push({ status: status22 });
+    message = "running order retrieved successfully.", currentStatus = status22;
   }
   const result = await prisma.order.findMany({
     where: {
@@ -2800,7 +2840,7 @@ var getSingleOrder = async (id) => {
     }
   });
   if (!result) {
-    throw new AppError_default(status9.NOT_FOUND, "no order found for this id");
+    throw new AppError_default(status10.NOT_FOUND, "no order found for this id");
   }
   return {
     success: true,
@@ -2813,7 +2853,7 @@ var deleteOrder = async (id, role) => {
     where: { id }
   });
   if (!existingOrder) {
-    throw new AppError_default(status9.NOT_FOUND, "Order not found");
+    throw new AppError_default(status10.NOT_FOUND, "Order not found");
   }
   const deletedOrder = await prisma.order.delete({
     where: { id }
@@ -2837,16 +2877,16 @@ var ServiceOrder = {
 };
 
 // src/app/modules/order/order.controller.ts
-import status10 from "http-status";
+import status11 from "http-status";
 var createOrder = catchAsync(
   async (req, res) => {
     const user = req.user;
     if (!user) {
-      return res.status(status10.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+      return res.status(status11.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
     }
     const result = await ServiceOrder.CreateOrder(req.body, user.email);
     sendResponse(res, {
-      httpStatusCode: status10.CREATED,
+      httpStatusCode: status11.CREATED,
       success: true,
       message: "your order has been created successfully",
       data: result
@@ -2857,12 +2897,12 @@ var getOwnmealsOrder2 = catchAsync(async (req, res) => {
   const user = req.user;
   const { search } = req.query;
   if (!user) {
-    return res.status(status10.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+    return res.status(status11.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
   }
   const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(req.query);
   const result = await ServiceOrder.getOwnmealsOrder(user.email, req.query, page, limit, skip, sortBy, sortOrder, search);
   sendResponse(res, {
-    httpStatusCode: status10.OK,
+    httpStatusCode: status11.OK,
     success: true,
     message: "your own meals orders retrieve successfully",
     data: result
@@ -2872,11 +2912,11 @@ var UpdateOrderStatus2 = catchAsync(
   async (req, res) => {
     const user = req.user;
     if (!user) {
-      return res.status(status10.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+      return res.status(status11.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
     }
     const result = await ServiceOrder.UpdateOrderStatus(req.params.id, req.body, user.role);
     sendResponse(res, {
-      httpStatusCode: status10.OK,
+      httpStatusCode: status11.OK,
       success: true,
       message: "update order status successfully",
       data: result
@@ -2888,20 +2928,20 @@ var getAllOrder = catchAsync(
     const user = req.user;
     const { search } = req.query;
     if (!user) {
-      return res.status(status10.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+      return res.status(status11.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
     }
     const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(req.query);
     const result = await ServiceOrder.getAllorder(user.role, req.query, page, limit, skip, sortBy, sortOrder, search);
     if (!result) {
       sendResponse(res, {
-        httpStatusCode: status10.BAD_REQUEST,
+        httpStatusCode: status11.BAD_REQUEST,
         success: false,
         message: "retrieve all orders failed",
         data: result
       });
     }
     sendResponse(res, {
-      httpStatusCode: status10.OK,
+      httpStatusCode: status11.OK,
       success: true,
       message: "retrieve all orders successfully",
       data: result
@@ -2921,14 +2961,14 @@ var customerOrderStatusTrack2 = catchAsync(
     const result = await ServiceOrder.customerOrderStatusTrack(req.params.id, users.id);
     if (!result?.success) {
       sendResponse(res, {
-        httpStatusCode: status10.BAD_REQUEST,
+        httpStatusCode: status11.BAD_REQUEST,
         success: false,
         message: result?.message,
         data: result?.result
       });
     }
     sendResponse(res, {
-      httpStatusCode: status10.OK,
+      httpStatusCode: status11.OK,
       success: true,
       message: "customer order status track successfully",
       data: result?.result
@@ -2939,19 +2979,19 @@ var CustomerRunningAndOldOrder2 = catchAsync(
   async (req, res) => {
     const user = req.user;
     if (!user) {
-      return res.status(status10.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+      return res.status(status11.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
     }
     const result = await ServiceOrder.CustomerRunningAndOldOrder(user.id, req.query.status);
     if (!result.success) {
       sendResponse(res, {
-        httpStatusCode: status10.BAD_REQUEST,
+        httpStatusCode: status11.BAD_REQUEST,
         success: false,
         message: "customer order status track failed",
         data: result?.result
       });
     }
     sendResponse(res, {
-      httpStatusCode: status10.OK,
+      httpStatusCode: status11.OK,
       success: true,
       message: result.message,
       data: result?.result
@@ -2966,14 +3006,14 @@ var getSingleOrder2 = catchAsync(async (req, res) => {
   const result = await ServiceOrder.getSingleOrder(req.params.id);
   if (!result.success) {
     sendResponse(res, {
-      httpStatusCode: status10.BAD_REQUEST,
+      httpStatusCode: status11.BAD_REQUEST,
       success: false,
       message: "retrieve single order failed",
       data: result
     });
   }
   sendResponse(res, {
-    httpStatusCode: status10.OK,
+    httpStatusCode: status11.OK,
     success: true,
     message: "retrieve single order successfully",
     data: result?.result
@@ -2983,7 +3023,7 @@ var getOwnPayment = catchAsync(async (req, res) => {
   const email = req.user?.email;
   const result = await ServiceOrder.getOwnPaymentService(req.params.id, email);
   sendResponse(res, {
-    httpStatusCode: status10.OK,
+    httpStatusCode: status11.OK,
     success: true,
     message: "Fetched own payment participants successfully",
     data: result
@@ -2998,14 +3038,14 @@ var deleteOrder2 = catchAsync(async (req, res) => {
   try {
     const result = await ServiceOrder.deleteOrder(orderId, user.role);
     sendResponse(res, {
-      httpStatusCode: status10.OK,
+      httpStatusCode: status11.OK,
       success: true,
       message: "Order deleted successfully",
       data: result
     });
   } catch (error) {
     sendResponse(res, {
-      httpStatusCode: error.statusCode || status10.BAD_REQUEST,
+      httpStatusCode: error.statusCode || status11.BAD_REQUEST,
       success: false,
       message: error.message || "Failed to delete order",
       data: error
@@ -3056,13 +3096,16 @@ var OrderRouter = { router: router3 };
 import { Router as Router4 } from "express";
 
 // src/app/modules/category/category.service.ts
-import status11 from "http-status";
+import status12 from "http-status";
 var CreateCategory = async (data, email) => {
+  if (!data.image) {
+    throw new AppError_default(404, "Image is required");
+  }
   const adminUser = await prisma.user.findUnique({
     where: { email }
   });
   if (!adminUser) {
-    throw new AppError_default(status11.UNAUTHORIZED, "Admin user not found or unauthorized");
+    throw new AppError_default(status12.UNAUTHORIZED, "Admin user not found or unauthorized");
   }
   const adminId = adminUser.id;
   const categorydata = await prisma.category.findUnique({
@@ -3179,6 +3222,9 @@ var SingleCategory = async (id) => {
 };
 var UpdateCategory = async (id, data) => {
   const { name } = data;
+  if (!data.image) {
+    throw new AppError_default(404, "Image is required");
+  }
   const existcategory = await prisma.category.findUniqueOrThrow({
     where: { id }
   });
@@ -3211,19 +3257,24 @@ var categoryService = {
 };
 
 // src/app/modules/category/category.controller.ts
-import { status as status12 } from "http-status";
+import { status as status13 } from "http-status";
 var CreateCategory2 = catchAsync(
   async (req, res) => {
     const user = req.user;
+    console.log(user, "sdfdsf");
     if (!user) {
-      return res.status(status12.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+      return res.status(status13.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
     }
+    const payload = {
+      ...req.body,
+      image: req.file?.path || req.body.image
+    };
     const result = await categoryService.CreateCategory(
-      req.body,
+      payload,
       user.email
     );
     sendResponse(res, {
-      httpStatusCode: status12.CREATED,
+      httpStatusCode: status13.CREATED,
       success: true,
       message: "your category has been created",
       data: result
@@ -3236,7 +3287,7 @@ var getCategory2 = catchAsync(async (req, res) => {
   );
   const result = await categoryService.getCategory(req.query, page, limit, skip);
   sendResponse(res, {
-    httpStatusCode: status12.OK,
+    httpStatusCode: status13.OK,
     success: true,
     message: "retrieve category successfully",
     data: result
@@ -3245,7 +3296,7 @@ var getCategory2 = catchAsync(async (req, res) => {
 var SingleCategory2 = catchAsync(async (req, res) => {
   const result = await categoryService.SingleCategory(req.params.id);
   sendResponse(res, {
-    httpStatusCode: status12.OK,
+    httpStatusCode: status13.OK,
     success: true,
     message: "retrieve single category successfully",
     data: result
@@ -3257,7 +3308,7 @@ var UpdateCategory2 = catchAsync(async (req, res) => {
     req.body
   );
   sendResponse(res, {
-    httpStatusCode: status12.OK,
+    httpStatusCode: status13.OK,
     success: true,
     message: "your category has beed changed",
     data: result
@@ -3266,7 +3317,7 @@ var UpdateCategory2 = catchAsync(async (req, res) => {
 var DeleteCategory2 = catchAsync(async (req, res) => {
   const result = await categoryService.DeleteCategory(req.params.id);
   sendResponse(res, {
-    httpStatusCode: status12.OK,
+    httpStatusCode: status13.OK,
     success: true,
     message: "your category has beed deleted",
     data: result
@@ -3284,16 +3335,16 @@ var CategoryController = {
 import z4 from "zod";
 var createcategoryData = z4.object({
   name: z4.string(),
-  image: z4.string()
+  image: z4.any()
 }).strict();
 var UpdatecategoryData = z4.object({
   name: z4.string().optional(),
-  image: z4.string().optional()
+  image: z4.any().optional()
 }).strict();
 
 // src/app/modules/category/category.route.ts
 var router4 = Router4();
-router4.post("/admin/category", auth_default([UserRoles.Admin]), validateRequest(createcategoryData), CategoryController.CreateCategory);
+router4.post("/admin/category", auth_default([UserRoles.Admin]), multerUpload.single("file"), validateRequest(createcategoryData), CategoryController.CreateCategory);
 router4.get("/category", CategoryController.getCategory);
 router4.get("/category/:id", CategoryController.SingleCategory);
 router4.put("/admin/category/:id", auth_default([UserRoles.Admin]), validateRequest(UpdatecategoryData), CategoryController.UpdateCategory);
@@ -3304,7 +3355,7 @@ var CategoryRouter = { router: router4 };
 import { Router as Router5 } from "express";
 
 // src/app/modules/user/user.service.ts
-import status13 from "http-status";
+import status14 from "http-status";
 var GetAllUsers = async (data) => {
   const andCondition = [];
   if (typeof data.data?.email == "string") {
@@ -3368,7 +3419,7 @@ var getUserprofile = async (id) => {
     where: { id }
   });
   if (!user) {
-    throw new AppError_default(status13.NOT_FOUND, "user not found for this id");
+    throw new AppError_default(status14.NOT_FOUND, "user not found for this id");
   }
   if (user.role !== "Provider") {
     return user;
@@ -3489,7 +3540,7 @@ var UserService = {
 };
 
 // src/app/modules/user/user.controller.ts
-import status14 from "http-status";
+import status15 from "http-status";
 var GetAllUsers2 = catchAsync(async (req, res) => {
   const search = req.query;
   const { isActive } = req.query;
@@ -3507,7 +3558,7 @@ var GetAllUsers2 = catchAsync(async (req, res) => {
     sortOrder
   });
   sendResponse(res, {
-    httpStatusCode: status14.OK,
+    httpStatusCode: status15.OK,
     success: true,
     message: "retrieve all users has been successfully",
     data: result
@@ -3516,11 +3567,11 @@ var GetAllUsers2 = catchAsync(async (req, res) => {
 var getUserprofile2 = catchAsync(async (req, res) => {
   const user = req.user;
   if (!user) {
-    return res.status(status14.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
+    return res.status(status15.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
   }
   const result = await UserService.getUserprofile(req.params.id);
   sendResponse(res, {
-    httpStatusCode: status14.OK,
+    httpStatusCode: status15.OK,
     success: true,
     message: user.role !== "Provider" ? "your user profile has been retrieved successfully" : "your user profile has been retrieved successfully",
     data: result
@@ -3531,12 +3582,16 @@ var UpateUserProfile2 = catchAsync(async (req, res) => {
   if (!user) {
     return res.status(401).json({ success: false, message: "you are unauthorized" });
   }
+  const payload = {
+    ...req.body,
+    image: req.file?.path || req.body.image
+  };
   const result = await UserService.UpateUserProfile(
-    req.body,
+    payload,
     user.email
   );
   sendResponse(res, {
-    httpStatusCode: status14.OK,
+    httpStatusCode: status15.OK,
     success: true,
     message: "your profile has been updated successfully",
     data: result
@@ -3553,7 +3608,7 @@ var UpdateUser2 = catchAsync(
       req.body
     );
     sendResponse(res, {
-      httpStatusCode: status14.OK,
+      httpStatusCode: status15.OK,
       success: true,
       message: `user change successfully`,
       data: result
@@ -3568,7 +3623,7 @@ var DeleteUserProfile2 = catchAsync(
     }
     const result = await UserService.DeleteUserProfile(req.params.id);
     sendResponse(res, {
-      httpStatusCode: status14.OK,
+      httpStatusCode: status15.OK,
       success: true,
       message: "user account delete successfully",
       data: result
@@ -3582,7 +3637,7 @@ var OwnProfileDelete2 = catchAsync(async (req, res) => {
   }
   const result = await UserService.OwnProfileDelete(user.id);
   sendResponse(res, {
-    httpStatusCode: status14.OK,
+    httpStatusCode: status15.OK,
     success: true,
     message: "user own account delete successfully",
     data: result
@@ -3601,7 +3656,7 @@ var UserController = {
 import z5 from "zod";
 var UpdateuserProfileData = z5.object({
   name: z5.string().optional(),
-  image: z5.string().optional(),
+  image: z5.any().optional(),
   bgimage: z5.string().optional(),
   email: z5.string().optional(),
   password: z5.string().min(8).optional(),
@@ -3722,7 +3777,7 @@ var getReviewByid = async (reviewid) => {
   return result;
 };
 var moderateReview = async (id, data) => {
-  const { status: status21 } = data;
+  const { status: status22 } = data;
   const reviewData = await prisma.review.findUnique({
     where: {
       id
@@ -3743,7 +3798,7 @@ var moderateReview = async (id, data) => {
       id
     },
     data: {
-      status: status21
+      status: status22
     }
   });
   return result;
@@ -3818,7 +3873,7 @@ var getAllreviews = async (data, page, limit, skip, sortBy, sortOrder, search) =
 var ReviewsService = { CreateReviews, updateReview, deleteReview, getReviewByid, moderateReview, getAllreviews };
 
 // src/app/modules/reviews/reviews.controller.ts
-import status15 from "http-status";
+import status16 from "http-status";
 var CreateReviews2 = catchAsync(async (req, res) => {
   const user = req.user;
   if (!user) {
@@ -3826,7 +3881,7 @@ var CreateReviews2 = catchAsync(async (req, res) => {
   }
   const result = await ReviewsService.CreateReviews(user.id, req.params.id, req.body);
   sendResponse(res, {
-    httpStatusCode: status15.CREATED,
+    httpStatusCode: status16.CREATED,
     success: true,
     message: "your review has been created successfully",
     data: result
@@ -3840,7 +3895,7 @@ var updateReview2 = catchAsync(async (req, res) => {
   const { reviewid } = req.params;
   const result = await ReviewsService.updateReview(reviewid, req.body, user?.id);
   sendResponse(res, {
-    httpStatusCode: status15.OK,
+    httpStatusCode: status16.OK,
     success: true,
     message: "review update successfully",
     data: result
@@ -3855,7 +3910,7 @@ var deleteReview2 = catchAsync(
     const { reviewid } = req.params;
     const result = await ReviewsService.deleteReview(reviewid, user?.id);
     sendResponse(res, {
-      httpStatusCode: status15.OK,
+      httpStatusCode: status16.OK,
       success: true,
       message: "review delete successfully",
       data: result
@@ -3866,7 +3921,7 @@ var moderateReview2 = catchAsync(async (req, res) => {
   const { reviewid } = req.params;
   const result = await ReviewsService.moderateReview(reviewid, req.body);
   sendResponse(res, {
-    httpStatusCode: status15.OK,
+    httpStatusCode: status16.OK,
     success: true,
     message: "review moderate successfully",
     data: result
@@ -3877,7 +3932,7 @@ var getReviewByid2 = catchAsync(
     const { reviewid } = req.params;
     const result = await ReviewsService.getReviewByid(reviewid);
     sendResponse(res, {
-      httpStatusCode: status15.OK,
+      httpStatusCode: status16.OK,
       success: true,
       message: "retrieve review by id successfully",
       data: result
@@ -3892,7 +3947,7 @@ var getAllreviews2 = catchAsync(
     const { search } = req.query;
     const result = await ReviewsService.getAllreviews(req.query, page, limit, skip, sortBy, sortOrder, search);
     sendResponse(res, {
-      httpStatusCode: status15.OK,
+      httpStatusCode: status16.OK,
       success: true,
       message: "retrieve all reviews successfully",
       data: result
@@ -3985,17 +4040,14 @@ var tokenUtils = {
 };
 
 // src/app/modules/auth/auth.service.ts
-import status16 from "http-status";
+import status17 from "http-status";
 var getCurrentUser = async (email) => {
   const user = await prisma.user.findUnique({
     where: { email },
     include: { provider: true }
   });
   if (!user) {
-    throw new AppError_default(status16.NOT_FOUND, "User not found");
-  }
-  if (!user.isActive) {
-    throw new AppError_default(status16.UNAUTHORIZED, "User account is not active");
+    throw new AppError_default(status17.NOT_FOUND, "User not found");
   }
   return user;
 };
@@ -4027,12 +4079,12 @@ var signup = async (data) => {
   });
   if (!image) {
     throw new AppError_default(
-      status16.BAD_REQUEST,
+      status17.BAD_REQUEST,
       "Image is required to register a user."
     );
   }
   if (userExist) {
-    throw new AppError_default(status16.CONFLICT, "Email already in use");
+    throw new AppError_default(status17.CONFLICT, "Email already in use");
   }
   const result = await auth.api.signUpEmail({
     body: {
@@ -4081,7 +4133,7 @@ var signin = async (data) => {
     }
   });
   if (result.user.status === "suspend") {
-    throw new AppError_default(status16.UNAUTHORIZED, "User is suspend");
+    throw new AppError_default(status17.UNAUTHORIZED, "User is suspend");
   }
   const accessToken = tokenUtils.getAccessToken({
     userId: result.user.id,
@@ -4115,14 +4167,14 @@ var getNewToken = async (refreshToken, sessionToken) => {
     }
   });
   if (!isSessionTokenExists) {
-    throw new AppError_default(status16.UNAUTHORIZED, "Invalid session token");
+    throw new AppError_default(status17.UNAUTHORIZED, "Invalid session token");
   }
   const verifiedRefreshToken = jwtUtils.verifyToken(
     refreshToken,
     process.env.REFRESH_TOKEN_SECRET
   );
   if (!verifiedRefreshToken.success && verifiedRefreshToken.error) {
-    throw new AppError_default(status16.UNAUTHORIZED, "Invalid refresh token");
+    throw new AppError_default(status17.UNAUTHORIZED, "Invalid refresh token");
   }
   const data = verifiedRefreshToken.data;
   const newAccessToken = tokenUtils.getAccessToken({
@@ -4182,13 +4234,13 @@ var sendOtp = async (email) => {
     }
   });
   if (!user) {
-    throw new AppError_default(status16.NOT_FOUND, "User not found");
+    throw new AppError_default(status17.NOT_FOUND, "User not found");
   }
   if (user.status === "suspend") {
-    throw new AppError_default(status16.NOT_FOUND, "your are suspend");
+    throw new AppError_default(status17.NOT_FOUND, "your are suspend");
   }
   if (user.emailVerified) {
-    throw new AppError_default(status16.BAD_REQUEST, "Email already verified");
+    throw new AppError_default(status17.BAD_REQUEST, "Email already verified");
   }
   const result = await auth.api.sendVerificationOTP({
     body: {
@@ -4206,10 +4258,10 @@ var forgetPassword = async (email) => {
     }
   });
   if (!isUserExist) {
-    throw new AppError_default(status16.NOT_FOUND, "User not found");
+    throw new AppError_default(status17.NOT_FOUND, "User not found");
   }
   if (isUserExist.status == "suspend") {
-    throw new AppError_default(status16.NOT_FOUND, "your account is suspend");
+    throw new AppError_default(status17.NOT_FOUND, "your account is suspend");
   }
   await auth.api.requestPasswordResetEmailOTP({
     body: {
@@ -4225,10 +4277,10 @@ var resetPassword = async (email, otp, newPassword) => {
     }
   });
   if (!isUserExist) {
-    throw new AppError_default(status16.NOT_FOUND, "User not found");
+    throw new AppError_default(status17.NOT_FOUND, "User not found");
   }
   if (isUserExist.status == "suspend") {
-    throw new AppError_default(status16.NOT_FOUND, "your account is suspend");
+    throw new AppError_default(status17.NOT_FOUND, "your account is suspend");
   }
   await auth.api.resetPasswordEmailOTP({
     body: {
@@ -4250,7 +4302,7 @@ var changePassword = async (payload, sessionToken) => {
     })
   });
   if (!session) {
-    throw new AppError_default(status16.UNAUTHORIZED, "Invalid session token");
+    throw new AppError_default(status17.UNAUTHORIZED, "Invalid session token");
   }
   const { currentPassword, newPassword } = payload;
   const result = await auth.api.changePassword({
@@ -4302,7 +4354,7 @@ var authService = {
 };
 
 // src/app/modules/auth/auth.controller.ts
-import status17 from "http-status";
+import status18 from "http-status";
 var getCurrentUser2 = catchAsync(async (req, res) => {
   const user = req.user;
   if (!user) {
@@ -4310,7 +4362,7 @@ var getCurrentUser2 = catchAsync(async (req, res) => {
   }
   const result = await authService.getCurrentUser(user.email);
   sendResponse(res, {
-    httpStatusCode: status17.OK,
+    httpStatusCode: status18.OK,
     success: true,
     message: "retrieve current user successsfully",
     data: result
@@ -4335,7 +4387,7 @@ var signoutUser2 = catchAsync(async (req, res) => {
     sameSite: "none"
   });
   sendResponse(res, {
-    httpStatusCode: status17.OK,
+    httpStatusCode: status18.OK,
     success: true,
     message: "User logged out successfully",
     data: result
@@ -4343,14 +4395,15 @@ var signoutUser2 = catchAsync(async (req, res) => {
 });
 var signup2 = catchAsync(async (req, res) => {
   const payload = {
-    ...req.body
+    ...req.body,
+    image: req.file?.path || req.body.image
   };
   const result = await authService.signup(payload);
   if (!result) {
     return res.status(400).json({ success: false, message: "Signup failed" });
   }
   sendResponse(res, {
-    httpStatusCode: status17.CREATED,
+    httpStatusCode: status18.CREATED,
     success: true,
     message: "user signup successfully",
     data: result
@@ -4364,7 +4417,7 @@ var signin2 = catchAsync(async (req, res) => {
   tokenUtils.setRefreshTokenCookie(res, refreshToken);
   tokenUtils.setBetterAuthSessionCookie(res, token);
   sendResponse(res, {
-    httpStatusCode: status17.OK,
+    httpStatusCode: status18.OK,
     success: true,
     message: "user signin successfully",
     data: result
@@ -4375,7 +4428,7 @@ var getNewToken2 = catchAsync(
     const refreshToken = req.cookies.refreshToken;
     const betterAuthSessionToken = req.cookies["better-auth.session_token"];
     if (!refreshToken) {
-      throw new AppError_default(status17.UNAUTHORIZED, "Refresh token is missing");
+      throw new AppError_default(status18.UNAUTHORIZED, "Refresh token is missing");
     }
     const result = await authService.getNewToken(refreshToken, betterAuthSessionToken);
     const { accessToken, refreshToken: newRefreshToken, sessionToken } = result;
@@ -4383,7 +4436,7 @@ var getNewToken2 = catchAsync(
     tokenUtils.setRefreshTokenCookie(res, newRefreshToken);
     tokenUtils.setBetterAuthSessionCookie(res, sessionToken);
     sendResponse(res, {
-      httpStatusCode: status17.OK,
+      httpStatusCode: status18.OK,
       success: true,
       message: "New tokens generated successfully",
       data: {
@@ -4398,7 +4451,7 @@ var verifyEmail2 = catchAsync(async (req, res) => {
   const { email, otp } = req.body;
   await authService.verifyEmail(email, otp);
   sendResponse(res, {
-    httpStatusCode: status17.OK,
+    httpStatusCode: status18.OK,
     success: true,
     message: "Email verified successfully"
   });
@@ -4407,7 +4460,7 @@ var sendOtp2 = catchAsync(async (req, res) => {
   const { email } = req.body;
   await authService.sendOtp(email);
   sendResponse(res, {
-    httpStatusCode: status17.OK,
+    httpStatusCode: status18.OK,
     success: true,
     message: "OTP sent to email successfully"
   });
@@ -4416,7 +4469,7 @@ var forgetPassword2 = catchAsync(async (req, res) => {
   const { email } = req.body;
   await authService.forgetPassword(email);
   sendResponse(res, {
-    httpStatusCode: status17.OK,
+    httpStatusCode: status18.OK,
     success: true,
     message: "Password reset OTP sent to email successfully"
   });
@@ -4425,7 +4478,7 @@ var resetPassword2 = catchAsync(async (req, res) => {
   const { email, otp, newPassword } = req.body;
   await authService.resetPassword(email, otp, newPassword);
   sendResponse(res, {
-    httpStatusCode: status17.OK,
+    httpStatusCode: status18.OK,
     success: true,
     message: "Password reset successfully"
   });
@@ -4442,7 +4495,7 @@ var changePassword2 = catchAsync(async (req, res) => {
   tokenUtils.setRefreshTokenCookie(res, refreshToken);
   tokenUtils.setBetterAuthSessionCookie(res, token);
   sendResponse(res, {
-    httpStatusCode: status17.OK,
+    httpStatusCode: status18.OK,
     success: true,
     message: "Password changed successfully",
     data: result
@@ -4478,7 +4531,7 @@ var updateValidation = z7.object({
   name: z7.string().optional(),
   email: z7.string().email().optional(),
   password: z7.string().min(6).optional(),
-  image: z7.string().optional(),
+  image: z7.any().optional(),
   bgimage: z7.string().optional(),
   phone: z7.string().optional(),
   role: z7.string().optional(),
@@ -4491,7 +4544,7 @@ var updateValidation = z7.object({
 var router7 = Router7();
 router7.get("/me", auth_default([UserRoles.Admin, UserRoles.Customer, UserRoles.Provider]), authController.getCurrentUser);
 router7.post("/logout", auth_default([UserRoles.Admin, UserRoles.Customer, UserRoles.Provider]), authController.signoutUser);
-router7.post("/register", validateRequest(createUserSchema), authController.signup);
+router7.post("/register", multerUpload.single("file"), validateRequest(createUserSchema), authController.signup);
 router7.post("/login", authController.signin);
 router7.post("/change-password", auth_default([UserRoles.Admin, UserRoles.Provider, UserRoles.Customer]), authController.changePassword);
 router7.post("/refresh-token", authController.getNewToken);
@@ -4505,16 +4558,16 @@ var authRouter = { router: router7 };
 import express from "express";
 
 // src/app/modules/stats/stats.controller.ts
-import status19 from "http-status";
+import status20 from "http-status";
 
 // src/app/modules/stats/stats.service.ts
-import status18 from "http-status";
+import status19 from "http-status";
 var getDashboardStatsData = async (user) => {
   const userExists = await prisma.user.findUnique({
     where: { email: user.email }
   });
   if (!userExists) {
-    throw new AppError_default(status18.NOT_FOUND, "User does not exist");
+    throw new AppError_default(status19.NOT_FOUND, "User does not exist");
   }
   let statsData;
   switch (user.role) {
@@ -4525,7 +4578,7 @@ var getDashboardStatsData = async (user) => {
       statsData = getProviderDashboardStats(userExists.id);
       break;
     default:
-      throw new AppError_default(status18.BAD_REQUEST, "Invalid user role");
+      throw new AppError_default(status19.BAD_REQUEST, "Invalid user role");
   }
   return statsData;
 };
@@ -4695,14 +4748,14 @@ var statsService = { getDashboardStatsData };
 var getDashboardStatsData2 = catchAsync(async (req, res) => {
   const user = req.user;
   if (!user) {
-    return res.status(status19.UNAUTHORIZED).json({
+    return res.status(status20.UNAUTHORIZED).json({
       success: false,
       message: "you are unauthorized"
     });
   }
   const result = await statsService.getDashboardStatsData(user);
   sendResponse(res, {
-    httpStatusCode: status19.OK,
+    httpStatusCode: status20.OK,
     success: true,
     message: "Stats data retrieved successfully!",
     data: result
@@ -4725,7 +4778,7 @@ var StatsRoutes = router8;
 import { Router as Router8 } from "express";
 
 // src/app/modules/payment/payment.controller.ts
-import status20 from "http-status";
+import status21 from "http-status";
 
 // src/app/modules/payment/payment.service.ts
 var deleteParticipantAndPayment = async (participantId, paymentId) => {
@@ -5013,7 +5066,7 @@ var handleStripeWebhookEvent = catchAsync(async (req, res) => {
   });
   if (!signature || !webhookSecret) {
     console.error("Missing Stripe signature or webhook secret");
-    return res.status(status20.BAD_REQUEST).json({ message: "Missing Stripe signature or webhook secret" });
+    return res.status(status21.BAD_REQUEST).json({ message: "Missing Stripe signature or webhook secret" });
   }
   let event;
   try {
@@ -5040,13 +5093,13 @@ var handleStripeWebhookEvent = catchAsync(async (req, res) => {
       })
     }).catch(() => {
     });
-    return res.status(status20.BAD_REQUEST).json({ message: "Error processing Stripe webhook" });
+    return res.status(status21.BAD_REQUEST).json({ message: "Error processing Stripe webhook" });
   }
   try {
     const result = await PaymentService.handlerStripeWebhookEvent(event);
     console.log(result);
     sendResponse(res, {
-      httpStatusCode: status20.OK,
+      httpStatusCode: status21.OK,
       success: true,
       message: "Stripe webhook event processed successfully",
       data: result
@@ -5054,7 +5107,7 @@ var handleStripeWebhookEvent = catchAsync(async (req, res) => {
   } catch (error) {
     console.error("Error handling Stripe webhook event:", error);
     sendResponse(res, {
-      httpStatusCode: status20.INTERNAL_SERVER_ERROR,
+      httpStatusCode: status21.INTERNAL_SERVER_ERROR,
       success: false,
       message: "Error handling Stripe webhook event"
     });
@@ -5064,7 +5117,7 @@ var getAllPayment = catchAsync(async (req, res) => {
   const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(req.query);
   const payments = await PaymentService.getAllPaymentsService(req.user?.email, page, limit, skip, sortBy, sortOrder, req.query);
   sendResponse(res, {
-    httpStatusCode: status20.OK,
+    httpStatusCode: status21.OK,
     success: true,
     message: "All payment fetched",
     data: payments
@@ -5076,7 +5129,7 @@ var updatePaymentStatus = catchAsync(async (req, res) => {
   try {
     const result = await PaymentService.updatePaymentStatusWithOrderCheck(paymentId, newStatus);
     return sendResponse(res, {
-      httpStatusCode: status20.OK,
+      httpStatusCode: status21.OK,
       success: true,
       message: "Payment status updated successfully",
       data: result
@@ -5084,7 +5137,7 @@ var updatePaymentStatus = catchAsync(async (req, res) => {
   } catch (error) {
     console.error("Error updating payment status:", error);
     return sendResponse(res, {
-      httpStatusCode: status20.INTERNAL_SERVER_ERROR,
+      httpStatusCode: status21.INTERNAL_SERVER_ERROR,
       success: false,
       message: "Error updating payment status"
     });
@@ -5095,7 +5148,7 @@ var deletePayment2 = catchAsync(async (req, res) => {
   try {
     const result = await PaymentService.deletePayment(paymentId);
     return sendResponse(res, {
-      httpStatusCode: status20.OK,
+      httpStatusCode: status21.OK,
       success: true,
       message: "Payment deleted successfully",
       data: result
@@ -5103,7 +5156,7 @@ var deletePayment2 = catchAsync(async (req, res) => {
   } catch (error) {
     console.error("Error deleting payment:", error);
     return sendResponse(res, {
-      httpStatusCode: status20.INTERNAL_SERVER_ERROR,
+      httpStatusCode: status21.INTERNAL_SERVER_ERROR,
       success: false,
       message: "Error deleting payment"
     });
