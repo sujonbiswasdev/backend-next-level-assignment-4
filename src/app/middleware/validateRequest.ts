@@ -15,7 +15,6 @@ export const validateRequest = (zodSchema: z.ZodObject) => {
       }
     }
     const parsedResult = zodSchema.safeParse(req.body);
-    console.log(parsedResult,'re')
     if (!parsedResult.success) {
       const zodmessage = formatZodIssues(parsedResult.error);
       return res.status(400).json({

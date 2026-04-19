@@ -10,6 +10,7 @@ const createOrder = catchAsync(async (req: Request, res: Response) => {
     if (!user) {
         return res.status(status.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" })
     }
+
     const result = await ServiceOrder.CreateOrder(req.body, user.email as string)
     sendResponse(res,{
         httpStatusCode:status.CREATED,
@@ -156,13 +157,13 @@ const getSingleOrder = catchAsync(async (req: Request, res: Response) => {
 } )
 
 const getOwnPayment = catchAsync(async (req: Request, res: Response) => {
-    const email = req.user?.email;
-    const result = await ServiceOrder.getOwnPaymentService(req.params.id as string,email as string);
+    const user=req.user
+    const result = await ServiceOrder.getOwnPaymentService(req.params.id as string,req.query as any,user?.email as string);
   
     sendResponse(res, {
       httpStatusCode: status.OK,
       success: true,
-      message: "Fetched own payment participants successfully",
+      message: "Fetched own payment order successfully",
       data: result,
     });
   });
@@ -200,5 +201,6 @@ export const OrderController = {
     CustomerRunningAndOldOrder,
     getSingleOrder,
     getOwnPayment,
-    deleteOrder
+    deleteOrder,
+    
 }

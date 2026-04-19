@@ -12,10 +12,11 @@ const auth = (roles: string[]) => {
     try {
       const sessionToken = CookieUtils.getCookie(req, "better-auth.session_token");
       const accessToken = CookieUtils.getCookie(req, "accessToken");
+    
 
       if (sessionToken) {
-        const betterSession = await betterAuthInstance.api.getSession({ 
-          headers: req.headers as HeadersInit 
+        const betterSession = await betterAuthInstance.api.getSession({
+          headers: req.headers as HeadersInit
         });
 
         if (betterSession?.session) {
@@ -34,7 +35,7 @@ const auth = (roles: string[]) => {
             validateUserStatus(user.status);
             validateUserRole(user.role, roles);
 
-            req.user = { 
+            req.user = {
               id: user.id,
               name: user.name,
               email: user.email,
@@ -43,7 +44,7 @@ const auth = (roles: string[]) => {
               status: user.status,
               isActive: user.isActive
             };
-       
+
             return next();
           }
         }
@@ -60,7 +61,7 @@ const auth = (roles: string[]) => {
 
           validateUserRole(userData.role, roles);
 
-          req.user= { 
+          req.user = {
             id: userData.id,
             role: userData.role,
             email: userData.email,
@@ -81,7 +82,7 @@ const auth = (roles: string[]) => {
 };
 
 const validateUserStatus = (userStatus: string) => {
-  const forbiddenStatus = ["suspend", "BLOCKED", "DELETED"];
+  const forbiddenStatus = ["suspend"];
   if (forbiddenStatus.includes(userStatus)) {
     throw new AppError(status.UNAUTHORIZED, "Access denied! Your account is not active.");
   }

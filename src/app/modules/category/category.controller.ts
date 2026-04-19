@@ -8,7 +8,6 @@ import paginationSortingHelper from "../../helpers/paginationHelping";
 const CreateCategory = catchAsync(
   async (req: Request, res: Response) => {
     const user = req.user;
-    console.log(user,'sdfdsf')
     if (!user) {
       return res
         .status(status.UNAUTHORIZED)

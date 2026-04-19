@@ -6,9 +6,6 @@ import { Role, Status } from "../../../generated/prisma/enums";
 import { sendEmail } from "../utils/email";
 import { envVars } from "../config/env";
 
-console.log(process.env.FRONTEND_URL,'s')
-console.log(process.env.BETTER_AUTH_SECRET,'s')
-
 export const auth = betterAuth({
     secret: envVars.BETTER_AUTH_SECRET,
     baseURL: envVars.FRONTEND_URL,
@@ -145,7 +142,7 @@ export const auth = betterAuth({
         cookies: {
           state: {
             attributes: {
-              sameSite: "none",
+              sameSite: "lax",
               secure: true,
               httpOnly: true,
               path: "/",
@@ -153,7 +150,7 @@ export const auth = betterAuth({
           },
           sessionToken: {
             attributes: {
-              sameSite: "none",
+              sameSite: "lax",
               secure: true,
               httpOnly: true,
               path: "/",

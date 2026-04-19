@@ -35,7 +35,6 @@ const UpdateMeals = catchAsync(async (req: Request, res: Response) => {
     ...req.body,
     image: req.file?.path || req.body.image || null
   };
-console.log(payload,'payme')
   const result = await mealService.UpdateMeals(
     payload,
     req.params.id as string,
@@ -152,8 +151,6 @@ const getownmeals = catchAsync(async (req: Request, res: Response) => {
   }
 
   const { search } = req.query;
-
-  console.log(req.query, "dd");
   const isAvailable = req.query.isAvailable
     ? req.query.isAvailable === "true"
       ? true
@@ -210,9 +207,7 @@ const DeviceryCharge = catchAsync(async (req: Request, res: Response) => {
 });
 
 const updateStatus = catchAsync(async (req: Request, res: Response) => {
-  console.log(req, "sdfsffsdfsdfsdf");
-  console.log(req.body, "req,body");
-  console.log(req.params.id, "dfsdf");
+
   const user = req.user;
   if (!user) {
     return res

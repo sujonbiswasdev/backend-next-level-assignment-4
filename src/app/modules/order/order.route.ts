@@ -1,18 +1,19 @@
 import { Router } from "express";
 import auth from "../../middleware/auth";
 import { UserRoles } from "../../middleware/auth.const";
-import { OrderController } from "./order.controller";
+import {  OrderController } from "./order.controller";
 import { validateRequest } from "../../middleware/validateRequest";
 import { CreateorderData } from "./order.validation";
 
-const router=Router()
-router.post('/orders',auth([UserRoles.Customer]),validateRequest(CreateorderData),OrderController.createOrder)
-router.get('/orders/meal/:id/status',auth([UserRoles.Customer]),OrderController.customerOrderStatusTrack)
-router.get('/myorders/status',auth([UserRoles.Customer]),OrderController.CustomerRunningAndOldOrder)
-router.get('/orders/all',auth([UserRoles.Admin]),OrderController.getAllOrder)
-router.get('/orders',auth([UserRoles.Customer,UserRoles.Provider]),OrderController.getOwnmealsOrder)
-router.patch('/provider/orders/:id',auth([UserRoles.Provider,UserRoles.Customer,UserRoles.Admin]),OrderController.UpdateOrderStatus)
-router.get('/orders/:id',auth([UserRoles.Customer]),OrderController.getSingleOrder)
-router.delete('/order/:id',auth([UserRoles.Admin]),OrderController.deleteOrder)
-router.get("/order/:id/own-payment", auth([UserRoles.Customer]), OrderController.getOwnPayment);
-export const OrderRouter={router}
+const router = Router()
+router.post('/orders', auth([UserRoles.Customer]), validateRequest(CreateorderData), OrderController.createOrder)
+router.get('/orders/meal/:id/status', auth([UserRoles.Customer]), OrderController.customerOrderStatusTrack)
+router.get('/myorders/status', auth([UserRoles.Customer]), OrderController.CustomerRunningAndOldOrder)
+router.get('/orders/all', auth([UserRoles.Admin]), OrderController.getAllOrder)
+router.get('/orders', auth([UserRoles.Customer, UserRoles.Provider]), OrderController.getOwnmealsOrder)
+router.patch('/provider/orders/:id', auth([UserRoles.Provider, UserRoles.Customer, UserRoles.Admin]), OrderController.UpdateOrderStatus)
+router.get('/orders/:id', auth([UserRoles.Customer]), OrderController.getSingleOrder)
+router.delete('/order/:id', auth([UserRoles.Admin]), OrderController.deleteOrder)
+router.get("/order/:id/own-payment",auth([UserRoles.Customer]),OrderController.getOwnPayment)
+
+export const OrderRouter = { router }

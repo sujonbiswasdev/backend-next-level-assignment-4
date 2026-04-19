@@ -17,7 +17,7 @@ const GetAllUsers = async (
   search?:string | undefined
 
 ) => {
-  console.log(emailVerifiedquery,'dd')
+
   const andCondition: UserWhereInput[] = [];
   if (typeof data.email == "string") {
     andCondition.push({
@@ -200,7 +200,6 @@ const DeleteUserProfile = async (id: string) => {
 };
 
 const OwnProfileDelete = async (userid: string) => {
-  console.log(userid);
   const userData = await prisma.user.findUnique({
     where: { id: userid },
   });

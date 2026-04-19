@@ -5,7 +5,7 @@ import { auth } from "../lib/auth";
 export const seedAdmin = async () => {
 
   await prisma.$connect();
-  console.log("DB Connected");
+
   await auth.api.signUpEmail({
     body: {
       name: "admin12",

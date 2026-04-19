@@ -8,7 +8,6 @@ import { OrderWhereInput } from "../../../../generated/prisma/models";
 import { parseDateForPrisma } from "../../utils/parseDate";
 import { envVars } from "../../config/env";
 import { stripe } from "../../config/stripe.config";
-
 const CreateOrder = async (payload: ICreateorderData, email: string) => {
   const existingUser = await prisma.user.findUnique({ where: { email } });
   if (!existingUser) throw new AppError(404, "User not found");
@@ -177,6 +176,7 @@ const CreateOrder = async (payload: ICreateorderData, email: string) => {
   }
 };
 
+
 const getOwnmealsOrder = async (
   email?: string,
   data?: Record<string, any>,
@@ -296,7 +296,7 @@ const getOwnmealsOrder = async (
         },
       },
     });
-    console.log(result,'ddd')
+
     let total = 0;
     if (existingUser?.role === "Provider") {
       total = await prisma.order.count({
@@ -325,31 +325,31 @@ const getOwnmealsOrder = async (
   }
 };
 
-const getOwnPaymentService = async (id: string, email: string) => {
-  const user = await prisma.user.findUnique({
-    where: { email },
-  });
+const getOwnPaymentService = async (id: string, data:Record<string,any>,email:string) => {
+  const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
-    throw new AppError(404, "User not found");
+    throw new AppError(401, "User not found or unauthorized");
   }
-  const userId = user.id;
-  const orderres = await prisma.order.findMany({
+  const orderres = await prisma.order.findUnique({
     where: {
-      customerId: userId,
-      id,
+      id
     },
     include: {
-      payment: {
-        select: {
-          id: true,
-          amount: true,
-          status: true,
-          transactionId: true,
-          user: true,
+      payment: true
         },
-      },
-    },
   });
+  if(orderres?.customerId!==user.id){
+  throw new AppError(403, "You are not authorized to view this order payment");
+  }
+  if(orderres?.paymentStatus=="UNPAID"){
+    throw new AppError(400,"your payment is not paid")
+  }
+  if(!orderres?.payment || orderres.payment.id!==data.paymentId){
+    throw new AppError(404,'order payment not found')
+  }
+  if(!orderres){
+    throw new AppError(400, "Order not found for the provided ID or payment info");
+  }
   return orderres;
 };
 

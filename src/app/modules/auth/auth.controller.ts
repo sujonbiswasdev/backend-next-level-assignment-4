@@ -70,7 +70,6 @@ const signup = catchAsync(async (req: Request, res: Response) => {
 const signin = catchAsync(async (req: Request, res: Response) => {
   const result = await authService.signin(req.body);
   const { accessToken, refreshToken, token } = result;
-  console.log(token,'token')
   tokenUtils.setAccessTokenCookie(res, accessToken);
   tokenUtils.setRefreshTokenCookie(res, refreshToken);
   tokenUtils.setBetterAuthSessionCookie(res, token as string);

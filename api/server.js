@@ -19,7 +19,7 @@ var config = {
   "clientVersion": "7.7.0",
   "engineVersion": "75cbdc1eb7150937890ad5465d861175c6624711",
   "activeProvider": "postgresql",
-  "inlineSchema": 'model User {\n  id            String           @id\n  name          String\n  email         String           @unique\n  emailVerified Boolean          @default(false)\n  image         String?\n  bgimage       String?          @default("https://images.pexels.com/photos/8250184/pexels-photo-8250184.jpeg")\n  phone         String?          @db.VarChar(15)\n  role          Role             @default(Customer)\n  status        Status           @default(activate)\n  isActive      Boolean          @default(true)\n  createdAt     DateTime         @default(now())\n  updatedAt     DateTime         @updatedAt\n  accounts      Account[]\n  category      Category[]\n  payments      Payment[]\n  orders        Order[]\n  provider      ProviderProfile?\n  reviews       Review[]\n  sessions      Session[]\n\n  @@map("user")\n}\n\nmodel Session {\n  id        String   @id\n  expiresAt DateTime\n  token     String   @unique\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  ipAddress String?\n  userAgent String?\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@index([userId])\n  @@map("session")\n}\n\nmodel Account {\n  id                    String    @id\n  accountId             String\n  providerId            String\n  userId                String\n  accessToken           String?\n  refreshToken          String?\n  idToken               String?\n  accessTokenExpiresAt  DateTime?\n  refreshTokenExpiresAt DateTime?\n  scope                 String?\n  password              String?\n  createdAt             DateTime  @default(now())\n  updatedAt             DateTime  @updatedAt\n  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@index([userId])\n  @@map("account")\n}\n\nmodel Verification {\n  id         String   @id\n  identifier String\n  value      String\n  expiresAt  DateTime\n  createdAt  DateTime @default(now())\n  updatedAt  DateTime @updatedAt\n\n  @@index([identifier])\n  @@map("verification")\n}\n\nenum Role {\n  Customer\n  Provider\n  Admin\n}\n\nenum Status {\n  activate\n  suspend\n}\n\nmodel Category {\n  id        String   @id @default(uuid())\n  adminId   String\n  name      String   @unique @db.VarChar(150)\n  image     String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  user      User     @relation(fields: [adminId], references: [id], onDelete: Cascade)\n  meals     Meal[]\n\n  @@map("categories")\n}\n\nenum PaymentStatus {\n  PAID\n  UNPAID\n  FREE\n}\n\nmodel Meal {\n  id                String            @id @default(uuid())\n  meals_name        String            @db.VarChar(100)\n  description       String?\n  image             String?\n  price             Int\n  isAvailable       Boolean           @default(true)\n  dietaryPreference DietaryPreference @default(HALAL)\n  providerId        String\n  category_name     String\n  deliverycharge    Int\n  cuisine           Cuisine           @default(BANGLEDESHI)\n  status            MealsStatus       @default(APPROVED)\n  createdAt         DateTime          @default(now())\n  updatedAt         DateTime          @updatedAt\n  category          Category          @relation(fields: [category_name], references: [name], onDelete: Cascade)\n  provider          ProviderProfile   @relation(fields: [providerId], references: [id], onDelete: Cascade)\n  orderitem         Orderitem[]\n  reviews           Review[]\n  payment           Payment[]\n\n  @@map("meal")\n}\n\nenum DietaryPreference {\n  HALAL\n  VEGAN\n  VEGETARIAN\n  ANY\n  GLUTEN_FREE\n  KETO\n  PALEO\n  DAIRY_FREE\n  NUT_FREE\n  LOW_SUGAR\n}\n\nenum Cuisine {\n  BANGLEDESHI\n  ITALIAN\n  CHINESE\n  INDIAN\n  MEXICAN\n  THAI\n  JAPANESE\n  FRENCH\n  MEDITERRANEAN\n  AMERICAN\n  MIDDLE_EASTERN\n}\n\nenum MealsStatus {\n  PENDING\n  APPROVED\n  REJECTED\n}\n\nmodel Order {\n  id            String          @id @default(uuid())\n  customerId    String\n  providerId    String\n  first_name    String?\n  last_name     String?\n  status        OrderStatus     @default(PLACED)\n  totalPrice    Int\n  phone         String?\n  address       String\n  createdAt     DateTime        @default(now())\n  updatedAt     DateTime        @updatedAt\n  customer      User            @relation(fields: [customerId], references: [id], onDelete: Cascade)\n  provider      ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)\n  orderitem     Orderitem[]\n  payment       Payment?\n  paymentStatus PaymentStatus   @default(UNPAID)\n\n  @@map("order")\n}\n\nmodel Orderitem {\n  id        String   @id @default(uuid())\n  orderId   String\n  price     Float\n  quantity  Int\n  mealId    String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  meal      Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade)\n  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)\n\n  @@map("orderitem")\n}\n\nenum OrderStatus {\n  PLACED\n  PREPARING\n  READY\n  DELIVERED\n  CANCELLED\n}\n\nmodel Payment {\n  id String @id @default(uuid())\n\n  userId             String\n  mealId             String\n  stripeEventId      String? @unique\n  transactionId      String? @unique @db.Uuid()\n  paymentGatewayData Json?\n\n  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)\n  meal Meal @relation(fields: [mealId], references: [id], onDelete: Cascade, onUpdate: Cascade)\n\n  amount  Float\n  status  PaymentStatus @default(UNPAID)\n  orderId String        @unique\n  order   Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)\n\n  createdAt DateTime @default(now())\n}\n\nmodel ProviderProfile {\n  id             String   @id @default(uuid())\n  userId         String   @unique\n  restaurantName String   @unique @db.VarChar(100)\n  address        String   @db.VarChar(200)\n  description    String?\n  image          String?  @db.VarChar(100)\n  createdAt      DateTime @default(now())\n  updatedAt      DateTime @updatedAt\n  meals          Meal[]\n  orders         Order[]\n  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@map("providerprofile")\n}\n\nmodel Review {\n  id         String       @id @default(uuid())\n  customerId String\n  mealId     String\n  parentId   String?\n  rating     Int\n  status     ReviewStatus @default(APPROVED)\n  comment    String\n  createdAt  DateTime     @default(now())\n  updatedAt  DateTime     @updatedAt\n  customer   User         @relation(fields: [customerId], references: [id], onDelete: Cascade)\n  meal       Meal         @relation(fields: [mealId], references: [id], onDelete: Cascade)\n  parent     Review?      @relation("reviewsReply", fields: [parentId], references: [id], onDelete: Cascade)\n  replies    Review[]     @relation("reviewsReply")\n\n  @@map("review")\n}\n\nenum ReviewStatus {\n  APPROVED\n  REJECTED\n}\n\ngenerator client {\n  provider = "prisma-client"\n  output   = "../../generated/prisma"\n}\n\ndatasource db {\n  provider = "postgresql"\n}\n',
+  "inlineSchema": 'model User {\n  id            String           @id\n  name          String\n  email         String           @unique\n  emailVerified Boolean          @default(false)\n  image         String?\n  bgimage       String?          @default("https://images.pexels.com/photos/8250184/pexels-photo-8250184.jpeg")\n  phone         String?          @db.VarChar(15)\n  role          Role             @default(Customer)\n  status        Status           @default(activate)\n  isActive      Boolean          @default(true)\n  createdAt     DateTime         @default(now())\n  updatedAt     DateTime         @updatedAt\n  accounts      Account[]\n  category      Category[]\n  payments      Payment[]\n  orders        Order[]\n  provider      ProviderProfile?\n  reviews       Review[]\n  sessions      Session[]\n\n  @@map("user")\n}\n\nmodel Session {\n  id        String   @id\n  expiresAt DateTime\n  token     String   @unique\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  ipAddress String?\n  userAgent String?\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@index([userId])\n  @@map("session")\n}\n\nmodel Account {\n  id                    String    @id\n  accountId             String\n  providerId            String\n  userId                String\n  accessToken           String?\n  refreshToken          String?\n  idToken               String?\n  accessTokenExpiresAt  DateTime?\n  refreshTokenExpiresAt DateTime?\n  scope                 String?\n  password              String?\n  createdAt             DateTime  @default(now())\n  updatedAt             DateTime  @updatedAt\n  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@index([userId])\n  @@map("account")\n}\n\nmodel Verification {\n  id         String   @id\n  identifier String\n  value      String\n  expiresAt  DateTime\n  createdAt  DateTime @default(now())\n  updatedAt  DateTime @updatedAt\n\n  @@index([identifier])\n  @@map("verification")\n}\n\nenum Role {\n  Customer\n  Provider\n  Admin\n}\n\nenum Status {\n  activate\n  suspend\n}\n\nmodel Category {\n  id        String   @id @default(uuid())\n  adminId   String\n  name      String   @unique @db.VarChar(150)\n  image     String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  user      User     @relation(fields: [adminId], references: [id], onDelete: Cascade)\n  meals     Meal[]\n\n  @@map("categories")\n}\n\nenum PaymentStatus {\n  PAID\n  UNPAID\n  FREE\n}\n\nmodel Meal {\n  id                String            @id @default(uuid())\n  meals_name        String            @db.VarChar(100)\n  description       String?\n  image             String?\n  price             Int\n  isAvailable       Boolean           @default(true)\n  dietaryPreference DietaryPreference @default(HALAL)\n  providerId        String\n  category_name     String\n  deliverycharge    Int\n  cuisine           Cuisine           @default(BANGLEDESHI)\n  status            MealsStatus       @default(APPROVED)\n  createdAt         DateTime          @default(now())\n  updatedAt         DateTime          @updatedAt\n  category          Category          @relation(fields: [category_name], references: [name], onDelete: Cascade)\n  provider          ProviderProfile   @relation(fields: [providerId], references: [id], onDelete: Cascade)\n  orderitem         Orderitem[]\n  reviews           Review[]\n  payment           Payment[]\n\n  @@map("meal")\n}\n\nenum DietaryPreference {\n  HALAL\n  VEGAN\n  VEGETARIAN\n  ANY\n  GLUTEN_FREE\n  KETO\n  PALEO\n  DAIRY_FREE\n  NUT_FREE\n  LOW_SUGAR\n}\n\nenum Cuisine {\n  BANGLEDESHI\n  ITALIAN\n  CHINESE\n  INDIAN\n  MEXICAN\n  THAI\n  JAPANESE\n  FRENCH\n  MEDITERRANEAN\n  AMERICAN\n  MIDDLE_EASTERN\n}\n\nenum MealsStatus {\n  PENDING\n  APPROVED\n  REJECTED\n}\n\nmodel Order {\n  id            String          @id @default(uuid())\n  customerId    String\n  providerId    String\n  first_name    String?\n  last_name     String?\n  status        OrderStatus     @default(PLACED)\n  totalPrice    Int\n  phone         String?\n  address       String\n  createdAt     DateTime        @default(now())\n  updatedAt     DateTime        @updatedAt\n  customer      User            @relation(fields: [customerId], references: [id], onDelete: Cascade)\n  provider      ProviderProfile @relation(fields: [providerId], references: [id], onDelete: Cascade)\n  orderitem     Orderitem[]\n  payment       Payment?\n  paymentStatus PaymentStatus   @default(UNPAID)\n\n  @@map("order")\n}\n\nmodel Orderitem {\n  id        String   @id @default(uuid())\n  orderId   String\n  price     Float\n  quantity  Int\n  mealId    String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  meal      Meal     @relation(fields: [mealId], references: [id], onDelete: Cascade, onUpdate: Cascade)\n  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)\n\n  @@map("orderitem")\n}\n\nenum OrderStatus {\n  PLACED\n  PREPARING\n  READY\n  DELIVERED\n  CANCELLED\n}\n\nmodel Payment {\n  id String @id @default(uuid())\n\n  userId             String\n  mealId             String\n  stripeEventId      String? @unique\n  transactionId      String? @unique @db.Uuid()\n  paymentGatewayData Json?\n\n  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)\n  meal Meal @relation(fields: [mealId], references: [id], onDelete: Cascade, onUpdate: Cascade)\n\n  amount  Float\n  status  PaymentStatus @default(UNPAID)\n  orderId String        @unique\n  order   Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)\n\n  createdAt DateTime @default(now())\n}\n\nmodel ProviderProfile {\n  id             String   @id @default(uuid())\n  userId         String   @unique\n  restaurantName String   @unique @db.VarChar(100)\n  address        String   @db.VarChar(200)\n  description    String?\n  image          String?  @db.VarChar(100)\n  createdAt      DateTime @default(now())\n  updatedAt      DateTime @updatedAt\n  meals          Meal[]\n  orders         Order[]\n  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@map("providerprofile")\n}\n\nmodel Review {\n  id         String       @id @default(uuid())\n  customerId String\n  mealId     String\n  parentId   String?\n  rating     Int\n  status     ReviewStatus @default(APPROVED)\n  comment    String\n  createdAt  DateTime     @default(now())\n  updatedAt  DateTime     @updatedAt\n  customer   User         @relation(fields: [customerId], references: [id], onDelete: Cascade)\n  meal       Meal         @relation(fields: [mealId], references: [id], onDelete: Cascade)\n  parent     Review?      @relation("reviewsReply", fields: [parentId], references: [id], onDelete: Cascade)\n  replies    Review[]     @relation("reviewsReply")\n\n  @@map("review")\n}\n\nenum ReviewStatus {\n  APPROVED\n  REJECTED\n}\n\ngenerator client {\n  provider = "prisma-client"\n  output   = "../../generated/prisma"\n}\n\ndatasource db {\n  provider = "postgresql"\n}\n',
   "runtimeDataModel": {
     "models": {},
     "enums": {},
@@ -1227,14 +1227,15 @@ var UpdateMeals = async (data, mealid) => {
   return result;
 };
 var DeleteMeals = async (mealid) => {
-  const existmeal = await prisma.meal.findUnique({
+  const orderitem = await prisma.orderitem.findFirst({
     where: {
-      id: mealid
+      mealId: mealid
+    },
+    select: {
+      orderId: true
     }
   });
-  if (!existmeal) {
-    throw new AppError_default(status5.NOT_FOUND, "meal not found");
-  }
+  await prisma.order.delete({ where: { id: orderitem?.orderId } });
   const result = await prisma.meal.delete({
     where: {
       id: mealid
@@ -2560,6 +2561,7 @@ var getOwnmealsOrder = async (email, data, page, limit, skip, sortBy, sortOrder,
         }
       }
     });
+    console.log(result, "ddd");
     let total = 0;
     if (existingUser?.role === "Provider") {
       total = await prisma.order.count({
@@ -3358,40 +3360,42 @@ import { Router as Router5 } from "express";
 
 // src/app/modules/user/user.service.ts
 import status14 from "http-status";
-var GetAllUsers = async (data) => {
+var GetAllUsers = async (data, isactivequery, emailVerifiedquery, page, limit, skip, sortBy, sortOrder, search) => {
+  console.log(emailVerifiedquery, "dd");
   const andCondition = [];
-  if (typeof data.data?.email == "string") {
+  if (typeof data.email == "string") {
     andCondition.push({
-      email: data.data?.email
+      email: data.email
     });
   }
-  if (typeof data.data?.name == "string") {
+  if (typeof isactivequery === "boolean") {
+    andCondition.push({ isActive: isactivequery });
+  }
+  if (typeof data.name == "string") {
     andCondition.push({
-      name: data.data?.name
+      name: data.name
     });
   }
-  if (typeof data.data?.phone == "string") {
+  if (typeof data.phone == "string") {
     andCondition.push({
-      email: data.data?.phone
+      email: data.phone
     });
   }
-  if (typeof data.data?.emailVerified == "boolean") {
-    andCondition.push({ emailVerified: data.data?.emailVerified });
+  if (typeof emailVerifiedquery == "boolean") {
+    andCondition.push({ emailVerified: emailVerifiedquery });
   }
-  if (typeof data.data?.role == "string") {
-    andCondition.push({ role: data.data?.role });
+  if (typeof data.role == "string") {
+    andCondition.push({ role: data.role });
   }
-  if (typeof data.data?.status == "string") {
-    andCondition.push({ status: data.data?.status });
-  }
-  if (typeof data.isactivequery == "boolean") {
-    andCondition.push({ isActive: data.isactivequery });
+  if (typeof data.status == "string") {
+    andCondition.push({ status: data.status });
   }
   const result = await prisma.user.findMany({
-    take: data.limit,
-    skip: data.skip,
+    take: limit,
+    skip,
     where: {
-      AND: andCondition
+      AND: andCondition,
+      ...data.data?.isActive !== null ? { isActive: data.data?.isActive } : {}
     },
     include: {
       provider: true,
@@ -3401,18 +3405,19 @@ var GetAllUsers = async (data) => {
       [data.sortBy]: data.sortOrder
     }
   });
-  const totalusers = await prisma.user.count({
+  const total = await prisma.user.count({
     where: {
-      AND: andCondition
+      AND: andCondition,
+      ...data.data?.isActive !== null ? { isActive: data.data?.isActive } : {}
     }
   });
   return {
     data: result,
     pagination: {
-      total: totalusers,
-      page: data.page,
-      limit: data.limit,
-      totalpage: Math.ceil(totalusers / data.limit) || 1
+      total,
+      page,
+      limit,
+      totalpage: Math.ceil(total / limit) || 1
     }
   };
 };
@@ -3544,21 +3549,24 @@ var UserService = {
 // src/app/modules/user/user.controller.ts
 import status15 from "http-status";
 var GetAllUsers2 = catchAsync(async (req, res) => {
-  const search = req.query;
+  const { search } = req.query;
   const { isActive } = req.query;
-  const isactivequery = isActive ? req.params.isActive === "true" ? true : req.query.isActive === "false" ? false : void 0 : void 0;
+  const isactivequery = isActive ? req.query.isActive === "true" ? true : req.query.isActive === "false" ? false : void 0 : void 0;
+  const emailVerifiedquery = req.query.emailVerified ? req.query.emailVerified === "true" ? true : req.query.emailVerified === "false" ? false : void 0 : void 0;
   const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(
     req.query
   );
-  const result = await UserService.GetAllUsers({
-    data: search,
+  const result = await UserService.GetAllUsers(
+    req.query,
     isactivequery,
+    emailVerifiedquery,
     page,
     limit,
     skip,
     sortBy,
-    sortOrder
-  });
+    sortOrder,
+    search
+  );
   sendResponse(res, {
     httpStatusCode: status15.OK,
     success: true,

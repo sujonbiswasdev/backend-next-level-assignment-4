@@ -271,7 +271,7 @@ const resetPassword = async (
   otp: string,
   newPassword: string,
 ) => {
-  console.log(email,otp,newPassword,'passwrd')
+
   const isUserExist = await prisma.user.findUnique({
     where: {
       email,

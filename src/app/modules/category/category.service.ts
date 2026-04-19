@@ -50,7 +50,7 @@ const getCategory = async (
   limit?: number | undefined,
   skip?: number,
   ) => {
-    console.log(data?.name,'dsfdsf')
+
     const andConditions: CategoryWhereInput[] = [];
 
     if (data?.name) {
@@ -81,7 +81,6 @@ const getCategory = async (
         },
       });
     }
-    console.log(andConditions,'sdfsdfsdfsf')
   const result = await prisma.category.findMany({
     where:{
       AND:andConditions

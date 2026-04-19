@@ -35,7 +35,7 @@ const getAllProvider = async (
   sortOrder?: string | undefined,
   search?:string | undefined
  ) => {
-  console.log(search,'queary data')
+ 
 
 
   const andConditions: ProviderProfileWhereInput[] = [];

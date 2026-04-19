@@ -223,6 +223,9 @@ CREATE UNIQUE INDEX "Payment_orderId_key" ON "Payment"("orderId");
 -- CreateIndex
 CREATE UNIQUE INDEX "providerprofile_userId_key" ON "providerprofile"("userId");
 
+-- CreateIndex
+CREATE UNIQUE INDEX "providerprofile_restaurantName_key" ON "providerprofile"("restaurantName");
+
 -- AddForeignKey
 ALTER TABLE "session" ADD CONSTRAINT "session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
