@@ -627,7 +627,6 @@ var sendEmail = async ({
       }))
     };
     const info = await transporter.sendMail(mailOptions);
-    console.log(`Email sent to ${to} : ${info.messageId}`);
   } catch (error) {
     console.error("Email Sending Error", {
       message: error?.message,
@@ -640,8 +639,6 @@ var sendEmail = async ({
 };
 
 // src/app/lib/auth.ts
-console.log(process.env.FRONTEND_URL, "s");
-console.log(process.env.BETTER_AUTH_SECRET, "s");
 var auth = betterAuth({
   secret: envVars.BETTER_AUTH_SECRET,
   baseURL: envVars.FRONTEND_URL,
@@ -774,7 +771,7 @@ var auth = betterAuth({
     cookies: {
       state: {
         attributes: {
-          sameSite: "none",
+          sameSite: "lax",
           secure: true,
           httpOnly: true,
           path: "/"
@@ -782,7 +779,7 @@ var auth = betterAuth({
       },
       sessionToken: {
         attributes: {
-          sameSite: "none",
+          sameSite: "lax",
           secure: true,
           httpOnly: true,
           path: "/"
@@ -955,7 +952,7 @@ var auth2 = (roles) => {
   };
 };
 var validateUserStatus = (userStatus) => {
-  const forbiddenStatus = ["suspend", "BLOCKED", "DELETED"];
+  const forbiddenStatus = ["suspend"];
   if (forbiddenStatus.includes(userStatus)) {
     throw new AppError_default(status4.UNAUTHORIZED, "Access denied! Your account is not active.");
   }
@@ -1594,7 +1591,6 @@ var UpdateMeals2 = catchAsync(async (req, res) => {
     ...req.body,
     image: req.file?.path || req.body.image || null
   };
-  console.log(payload, "payme");
   const result = await mealService.UpdateMeals(
     payload,
     req.params.id
@@ -1686,7 +1682,6 @@ var getownmeals = catchAsync(async (req, res) => {
     return res.status(status6.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
   }
   const { search } = req.query;
-  console.log(req.query, "dd");
   const isAvailable = req.query.isAvailable ? req.query.isAvailable === "true" ? true : req.query.isAvailable == "false" ? false : void 0 : void 0;
   const { page, limit, skip, sortBy, sortOrder } = paginationHelping_default(
     req.query
@@ -1732,9 +1727,6 @@ var DeviceryCharge = catchAsync(async (req, res) => {
   });
 });
 var updateStatus2 = catchAsync(async (req, res) => {
-  console.log(req, "sdfsffsdfsdfsdf");
-  console.log(req.body, "req,body");
-  console.log(req.params.id, "dfsdf");
   const user = req.user;
   if (!user) {
     return res.status(status6.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
@@ -1806,7 +1798,6 @@ var validateRequest = (zodSchema) => {
       }
     }
     const parsedResult = zodSchema.safeParse(req.body);
-    console.log(parsedResult, "re");
     if (!parsedResult.success) {
       const zodmessage = formatZodIssues(parsedResult.error);
       return res.status(400).json({
@@ -1978,7 +1969,6 @@ var createProvider = async (data, userId) => {
   return result;
 };
 var getAllProvider = async (query, isActive, page, limit, skip, sortBy, sortOrder, search) => {
-  console.log(search, "queary data");
   const andConditions = [];
   if (search || query) {
     const orConditions = [];
@@ -2561,7 +2551,6 @@ var getOwnmealsOrder = async (email, data, page, limit, skip, sortBy, sortOrder,
         }
       }
     });
-    console.log(result, "ddd");
     let total = 0;
     if (existingUser?.role === "Provider") {
       total = await prisma.order.count({
@@ -2589,31 +2578,31 @@ var getOwnmealsOrder = async (email, data, page, limit, skip, sortBy, sortOrder,
     };
   }
 };
-var getOwnPaymentService = async (id, email) => {
-  const user = await prisma.user.findUnique({
-    where: { email }
-  });
+var getOwnPaymentService = async (id, data, email) => {
+  const user = await prisma.user.findUnique({ where: { email } });
   if (!user) {
-    throw new AppError_default(404, "User not found");
+    throw new AppError_default(401, "User not found or unauthorized");
   }
-  const userId = user.id;
-  const orderres = await prisma.order.findMany({
+  const orderres = await prisma.order.findUnique({
     where: {
-      customerId: userId,
       id
     },
     include: {
-      payment: {
-        select: {
-          id: true,
-          amount: true,
-          status: true,
-          transactionId: true,
-          user: true
-        }
-      }
+      payment: true
     }
   });
+  if (orderres?.customerId !== user.id) {
+    throw new AppError_default(403, "You are not authorized to view this order payment");
+  }
+  if (orderres?.paymentStatus == "UNPAID") {
+    throw new AppError_default(400, "your payment is not paid");
+  }
+  if (!orderres?.payment || orderres.payment.id !== data.paymentId) {
+    throw new AppError_default(404, "order payment not found");
+  }
+  if (!orderres) {
+    throw new AppError_default(400, "Order not found for the provided ID or payment info");
+  }
   return orderres;
 };
 var UpdateOrderStatus = async (id, data, role) => {
@@ -3024,12 +3013,12 @@ var getSingleOrder2 = catchAsync(async (req, res) => {
   });
 });
 var getOwnPayment = catchAsync(async (req, res) => {
-  const email = req.user?.email;
-  const result = await ServiceOrder.getOwnPaymentService(req.params.id, email);
+  const user = req.user;
+  const result = await ServiceOrder.getOwnPaymentService(req.params.id, req.query, user?.email);
   sendResponse(res, {
     httpStatusCode: status11.OK,
     success: true,
-    message: "Fetched own payment participants successfully",
+    message: "Fetched own payment order successfully",
     data: result
   });
 });
@@ -3132,7 +3121,6 @@ var CreateCategory = async (data, email) => {
   return result;
 };
 var getCategory = async (data, page, limit, skip) => {
-  console.log(data?.name, "dsfdsf");
   const andConditions = [];
   if (data?.name) {
     andConditions.push({
@@ -3159,7 +3147,6 @@ var getCategory = async (data, page, limit, skip) => {
       }
     });
   }
-  console.log(andConditions, "sdfsdfsdfsf");
   const result = await prisma.category.findMany({
     where: {
       AND: andConditions
@@ -3265,7 +3252,6 @@ import { status as status13 } from "http-status";
 var CreateCategory2 = catchAsync(
   async (req, res) => {
     const user = req.user;
-    console.log(user, "sdfdsf");
     if (!user) {
       return res.status(status13.UNAUTHORIZED).json({ success: false, message: "you are unauthorized" });
     }
@@ -3361,7 +3347,6 @@ import { Router as Router5 } from "express";
 // src/app/modules/user/user.service.ts
 import status14 from "http-status";
 var GetAllUsers = async (data, isactivequery, emailVerifiedquery, page, limit, skip, sortBy, sortOrder, search) => {
-  console.log(emailVerifiedquery, "dd");
   const andCondition = [];
   if (typeof data.email == "string") {
     andCondition.push({
@@ -3525,7 +3510,6 @@ var DeleteUserProfile = async (id) => {
   return result;
 };
 var OwnProfileDelete = async (userid) => {
-  console.log(userid);
   const userData = await prisma.user.findUnique({
     where: { id: userid }
   });
@@ -4280,7 +4264,6 @@ var forgetPassword = async (email) => {
   });
 };
 var resetPassword = async (email, otp, newPassword) => {
-  console.log(email, otp, newPassword, "passwrd");
   const isUserExist = await prisma.user.findUnique({
     where: {
       email
@@ -4422,7 +4405,6 @@ var signup2 = catchAsync(async (req, res) => {
 var signin2 = catchAsync(async (req, res) => {
   const result = await authService.signin(req.body);
   const { accessToken, refreshToken, token } = result;
-  console.log(token, "token");
   tokenUtils.setAccessTokenCookie(res, accessToken);
   tokenUtils.setRefreshTokenCookie(res, refreshToken);
   tokenUtils.setBetterAuthSessionCookie(res, token);
@@ -5111,7 +5093,6 @@ var handleStripeWebhookEvent = catchAsync(async (req, res) => {
   }
   try {
     const result = await PaymentService.handlerStripeWebhookEvent(event);
-    console.log(result);
     sendResponse(res, {
       httpStatusCode: status21.OK,
       success: true,

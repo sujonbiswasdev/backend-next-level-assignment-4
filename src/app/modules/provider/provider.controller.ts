@@ -24,7 +24,7 @@ const gelAllprovider=catchAsync(async(req:Request,res:Response)=>{
 
     const {search}=req.query;
 
-    const isActive = req.query.isAvailable
+    const isActive = req.query.isActive
                ? req.query.isActive === 'true'
                    ? true
                    : req.query.isActive == 'false'
