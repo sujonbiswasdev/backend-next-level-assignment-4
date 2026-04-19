@@ -130,8 +130,8 @@ REFRESH_TOKEN_EXPIRES_IN=7d
 APP_USER='example@gmail.com'
 APP_PASS=jkll ddss dsas degc
 
-EMAIL="admin1234@gmail.com"
-PASSWORD="admin1234"
+EMAIL="admin_email_example@gmail.com"
+PASSWORD="admin_email_example"
 GOOGLE_CLIENT_ID=google-client-id-example.apps.googleusercontent.com
 GOOGLE_CLIENT_SECRET=google-client-secret-example
 NODE_ENV=development
